@@ -81,6 +81,46 @@
     background: var(--page); color: var(--text-primary); font-size: 15px; font-weight: 600; cursor: pointer;
   }
   .who-options button:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cat-card { text-align: left; max-width: 520px; }
+  .cat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .cat-head h2 { flex: 1; margin: 0; font-size: 16px; text-align: center; }
+  .cat-back, .cat-close {
+    border: 1px solid var(--border); background: var(--page); color: var(--text-secondary);
+    border-radius: 8px; padding: 5px 10px; font-size: 12.5px; cursor: pointer; flex: none;
+  }
+  .cat-back:hover, .cat-close:hover { background: var(--surface-1); }
+  .cat-search {
+    width: 100%; font-family: inherit; font-size: 13.5px; padding: 9px 10px; margin-bottom: 12px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--page); color: var(--text-primary);
+  }
+  .cat-body { max-height: 55vh; overflow-y: auto; }
+  .cat-section-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; margin: 12px 0 7px; }
+  .cat-section-title:first-child { margin-top: 0; }
+  .cat-list { display: flex; flex-direction: column; gap: 6px; }
+  .cat-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+    padding: 11px 13px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--page); color: var(--text-primary); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .cat-item:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cat-item .chev { color: var(--text-muted); font-size: 15px; flex: none; }
+  .cat-item:hover .chev { color: #fff; }
+  .cat-item .freq { font-size: 10.5px; color: var(--text-muted); flex: none; }
+  .cat-item:hover .freq { color: rgba(255,255,255,0.75); }
+  .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cat-chip {
+    padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--page); color: var(--text-primary); font-size: 12.5px; cursor: pointer;
+  }
+  .cat-chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cat-trigger {
+    width: 100%; text-align: left; font-family: inherit; font-size: 13.5px; padding: 8px 9px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--page);
+    color: var(--text-primary); cursor: pointer;
+  }
+  .cat-trigger:hover { border-color: var(--accent); }
+  .cat-trigger.placeholder { color: var(--text-muted); }
+
   .pay-card { text-align: left; }
   .pay-card h2, .pay-card > p { text-align: center; }
   .pay-card .field { margin-bottom: 12px; }
@@ -205,6 +245,10 @@
     border-radius: 8px; padding: 5px 10px; cursor: pointer;
   }
   .pend-card .actions button:hover { background: var(--page); }
+  .pend-card .actions .pend-liquidar {
+    background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600;
+  }
+  .pend-card .actions .pend-liquidar:hover { background: var(--accent); filter: brightness(1.08); }
 
   .health-score-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
   .health-score-num { font-size: 36px; font-weight: 800; line-height: 1; }
@@ -353,7 +397,11 @@
           <div class="field"><label>Fecha</label><input type="date" id="mFecha" required></div>
           <div class="field"><label>Usuario</label><select id="mUsuario"></select></div>
           <div class="field"><label>Tipo</label><select id="mTipo"><option value="Gasto">Gasto</option><option value="Ingreso">Ingreso</option><option value="Ahorro/Inversión">Ahorro / Inversión</option></select></div>
-          <div class="field"><label>Categoría</label><select id="mCategoria"></select></div>
+          <div class="field">
+            <label>Categoría</label>
+            <button type="button" class="cat-trigger placeholder" data-cat-trigger="mCategoria">Toca para elegir categoría…</button>
+            <select id="mCategoria" class="hidden"></select>
+          </div>
           <div class="field full"><label>Descripción</label><input type="text" id="mDescripcion" required></div>
           <div class="field"><label>Monto (MXN)</label><input type="number" id="mMonto" step="0.01" min="0" required></div>
           <div class="field"><label>Impacto</label><select id="mImpacto"></select></div>
@@ -383,7 +431,11 @@
           <div class="field"><label>Fecha límite</label><input type="date" id="pFecha" required></div>
           <div class="field"><label>Tipo</label><select id="pTipo"><option value="Por cobrar">Por cobrar (espero que me paguen)</option><option value="Por pagar">Por pagar (yo debo pagar)</option></select></div>
           <div class="field"><label>Usuario</label><select id="pUsuario"></select></div>
-          <div class="field"><label>Categoría</label><select id="pCategoria"></select></div>
+          <div class="field">
+            <label>Categoría</label>
+            <button type="button" class="cat-trigger placeholder" data-cat-trigger="pCategoria">Toca para elegir categoría…</button>
+            <select id="pCategoria" class="hidden"></select>
+          </div>
           <div class="field full"><label>Concepto</label><input type="text" id="pConcepto" required></div>
           <div class="field"><label>Monto (MXN)</label><input type="number" id="pMonto" step="0.01" min="0" required></div>
           <div class="field full"><label>Notas (opcional)</label><input type="text" id="pNotas"></div>
@@ -426,6 +478,7 @@
   <div class="who-card pay-card">
     <h2 id="payModalTitle">Liquidar tarjeta</h2>
     <p>Registra el pago que hiciste a esta tarjeta. No se cuenta como gasto nuevo — solo salda lo que ya cargaste.</p>
+    <div class="field"><label>Tarjeta / cuenta a liquidar</label><select id="payTarjeta"></select></div>
     <div class="field"><label>Fecha</label><input type="date" id="payFecha"></div>
     <div class="field"><label>Usuario</label><select id="payUsuario"></select></div>
     <div class="field"><label>Monto pagado (MXN)</label><input type="number" id="payMonto" step="0.01" min="0"></div>
@@ -434,6 +487,18 @@
       <button type="button" class="btn-secondary" id="payCancelBtn">Cancelar</button>
       <button type="button" class="btn-primary" id="payConfirmBtn">Registrar pago</button>
     </div>
+  </div>
+</div>
+
+<div class="who-overlay hidden" id="catOverlay">
+  <div class="who-card cat-card">
+    <div class="cat-head">
+      <button type="button" class="cat-back hidden" id="catBackBtn">‹ Volver</button>
+      <h2 id="catModalTitle">Elige una categoría</h2>
+      <button type="button" class="cat-close" id="catCloseBtn">✕</button>
+    </div>
+    <input type="text" id="catSearch" class="cat-search" placeholder="Buscar categoría…">
+    <div class="cat-body" id="catBody"></div>
   </div>
 </div>
 
@@ -453,47 +518,54 @@
     usuarios: ["Agueda", "Aranza", "Pablo"],
     categorias: [
       // Necesidades
-      { nombre: "Casa / Renta", grupo: "necesidad" },
-      { nombre: "Mantenimiento del hogar", grupo: "necesidad" },
-      { nombre: "Servicios (luz, agua, gas, internet)", grupo: "necesidad" },
-      { nombre: "Despensa / Súper", grupo: "necesidad" },
-      { nombre: "Transporte y gasolina", grupo: "necesidad" },
-      { nombre: "Salud y medicinas", grupo: "necesidad" },
-      { nombre: "Seguros (auto, vida, gastos médicos)", grupo: "necesidad" },
-      { nombre: "Colegiaturas / Cuidado de hijos", grupo: "necesidad" },
-      { nombre: "Pago mínimo de deudas", grupo: "necesidad" },
+      { nombre: "Casa / Renta", grupo: "necesidad", icon: "🏠" },
+      { nombre: "Servicios (luz, agua, gas, internet)", grupo: "necesidad", icon: "💡" },
+      { nombre: "Despensa / Súper", grupo: "necesidad", icon: "🛒" },
+      { nombre: "Uber / Didi", grupo: "necesidad", icon: "🚗" },
+      { nombre: "Gasolina", grupo: "necesidad", icon: "⛽" },
+      { nombre: "Transporte público", grupo: "necesidad", icon: "🚌" },
+      { nombre: "Estacionamiento / casetas", grupo: "necesidad", icon: "🅿️" },
+      { nombre: "Mantenimiento del auto", grupo: "necesidad", icon: "🔧" },
+      { nombre: "Mantenimiento del hogar", grupo: "necesidad", icon: "🛠️" },
+      { nombre: "Salud y medicinas", grupo: "necesidad", icon: "💊" },
+      { nombre: "Seguros (auto, vida, gastos médicos)", grupo: "necesidad", icon: "🛡️" },
+      { nombre: "Colegiaturas / Cuidado de hijos", grupo: "necesidad", icon: "🎒" },
+      { nombre: "Pago mínimo de deudas", grupo: "necesidad", icon: "📉" },
       // Deseos / estilo de vida
-      { nombre: "Salidas a comer", grupo: "deseo" },
-      { nombre: "Salidas recreativas", grupo: "deseo" },
-      { nombre: "Tiendita / antojos (gastos hormiga)", grupo: "deseo" },
-      { nombre: "Ropa y accesorios", grupo: "deseo" },
-      { nombre: "Cuidado personal / Belleza", grupo: "deseo" },
-      { nombre: "Suscripciones (Netflix, etc.)", grupo: "deseo" },
-      { nombre: "Viajes y vacaciones", grupo: "deseo" },
-      { nombre: "Regalos y donativos", grupo: "deseo" },
-      { nombre: "Mascotas", grupo: "deseo" },
-      { nombre: "Hobbies y pasatiempos", grupo: "deseo" },
+      { nombre: "Comida en la calle / puestos", grupo: "deseo", icon: "🌮" },
+      { nombre: "Restaurantes", grupo: "deseo", icon: "🍽️" },
+      { nombre: "Café", grupo: "deseo", icon: "☕" },
+      { nombre: "Delivery (Rappi, Uber Eats)", grupo: "deseo", icon: "🛵" },
+      { nombre: "Tiendita / antojos (gastos hormiga)", grupo: "deseo", icon: "🍬" },
+      { nombre: "Salidas recreativas", grupo: "deseo", icon: "🎟️" },
+      { nombre: "Ropa y accesorios", grupo: "deseo", icon: "👕" },
+      { nombre: "Cuidado personal / Belleza", grupo: "deseo", icon: "💇" },
+      { nombre: "Suscripciones (Netflix, etc.)", grupo: "deseo", icon: "📺" },
+      { nombre: "Viajes y vacaciones", grupo: "deseo", icon: "✈️" },
+      { nombre: "Regalos y donativos", grupo: "deseo", icon: "🎁" },
+      { nombre: "Mascotas", grupo: "deseo", icon: "🐾" },
+      { nombre: "Hobbies y pasatiempos", grupo: "deseo", icon: "🎨" },
       // Crecimiento personal
-      { nombre: "Cursos / Educación", grupo: "crecimiento" },
-      { nombre: "Libros y material educativo", grupo: "crecimiento" },
-      // Ahorro, inversión y pago acelerado de deudas
-      { nombre: "Fondo de emergencia", grupo: "ahorro" },
-      { nombre: "Ahorro para una meta", grupo: "ahorro" },
-      { nombre: "Inversión / Retiro (Afore)", grupo: "ahorro" },
+      { nombre: "Cursos / Educación", grupo: "crecimiento", icon: "📚" },
+      { nombre: "Libros y material educativo", grupo: "crecimiento", icon: "📖" },
+      // Ahorro e inversión
+      { nombre: "Fondo de emergencia", grupo: "ahorro", icon: "🛟" },
+      { nombre: "Ahorro para una meta", grupo: "ahorro", icon: "🎯" },
+      { nombre: "Inversión / Retiro (Afore)", grupo: "ahorro", icon: "📈" },
       // Pagos a deuda: liquidan compras que YA se registraron como gasto en su categoría real
       // (comida, ropa, etc.) al momento de comprarlas. Por eso NO cuentan como gasto nuevo aquí,
       // para no contarlas dos veces.
-      { nombre: "Pago tarjeta de crédito", grupo: "deuda" },
-      { nombre: "Pago de préstamo / crédito automotriz", grupo: "deuda" },
+      { nombre: "Pago tarjeta de crédito", grupo: "deuda", icon: "💳" },
+      { nombre: "Pago de préstamo / crédito automotriz", grupo: "deuda", icon: "🏦" },
       // Otro
-      { nombre: "Otro gasto", grupo: "otro" },
+      { nombre: "Otro gasto", grupo: "otro", icon: "❓" },
       // Ingresos
-      { nombre: "Sueldo / Nómina", grupo: "ingreso" },
-      { nombre: "Ventas", grupo: "ingreso" },
-      { nombre: "Servicios prestados", grupo: "ingreso" },
-      { nombre: "Dinero de familiares", grupo: "ingreso" },
-      { nombre: "Reembolsos", grupo: "ingreso" },
-      { nombre: "Otro ingreso", grupo: "ingreso" }
+      { nombre: "Sueldo / Nómina", grupo: "ingreso", icon: "💼" },
+      { nombre: "Ventas", grupo: "ingreso", icon: "🏷️" },
+      { nombre: "Servicios prestados", grupo: "ingreso", icon: "🧾" },
+      { nombre: "Dinero de familiares", grupo: "ingreso", icon: "👨‍👩‍👧" },
+      { nombre: "Reembolsos", grupo: "ingreso", icon: "↩️" },
+      { nombre: "Otro ingreso", grupo: "ingreso", icon: "💵" }
     ],
     impactos: ["Positivo", "Neutro", "Negativo"],
     tarjetas: ["BBVA", "Santander", "Banamex", "Amex", "Mercado Pago", "Nu", "Banco Azteca", "HSBC", "Scotiabank", "Klar"]
@@ -524,7 +596,8 @@
     selectedMonth: null,
     showAll: false,
     tokenClient: null,
-    payingCard: null
+    payingCard: null,
+    payingPendRow: null
   };
 
   // ---------- Utilidades ----------
@@ -581,9 +654,166 @@
       sel.appendChild(og);
     });
   }
+
+  // ---------- Selector de categoría emergente (2 niveles + frecuentes + búsqueda) ----------
+  // El <select> original se mantiene oculto y sigue siendo la fuente de verdad al guardar;
+  // este modal solo escribe en él. Así no cambia nada del flujo de guardado.
+  var catPicker = { targetSelectId: null, grupo: null };
+
+  function iconOfCategoria(nombre) {
+    var c = CONFIG.categorias.filter(function (x) { return x.nombre === nombre; })[0];
+    return c && c.icon ? c.icon : "•";
+  }
+  // Cuenta cuántas veces se ha usado cada categoría para ordenar por frecuencia real de uso.
+  function categoriaFrecuencias() {
+    var counts = {};
+    state.movimientos.forEach(function (m) {
+      if (m.categoria) counts[m.categoria] = (counts[m.categoria] || 0) + 1;
+    });
+    return counts;
+  }
+  function categoriasFrecuentes(limit) {
+    var counts = categoriaFrecuencias();
+    return Object.keys(counts)
+      .filter(function (n) { return CAT_NOMBRES.indexOf(n) !== -1; })
+      .sort(function (a, b) { return counts[b] - counts[a]; })
+      .slice(0, limit)
+      .map(function (n) { return { nombre: n, veces: counts[n] }; });
+  }
+
+  function openCatPicker(targetSelectId) {
+    catPicker.targetSelectId = targetSelectId;
+    catPicker.grupo = null;
+    document.getElementById("catSearch").value = "";
+    renderCatPicker();
+    document.getElementById("catOverlay").classList.remove("hidden");
+    document.getElementById("catSearch").focus();
+  }
+  function closeCatPicker() {
+    document.getElementById("catOverlay").classList.add("hidden");
+    catPicker.targetSelectId = null;
+    catPicker.grupo = null;
+  }
+  function chooseCategoria(nombre) {
+    var sel = document.getElementById(catPicker.targetSelectId);
+    if (sel) {
+      sel.value = nombre;
+      updateCatTrigger(catPicker.targetSelectId);
+    }
+    closeCatPicker();
+  }
+  function updateCatTrigger(selectId) {
+    var trigger = document.querySelector('[data-cat-trigger="' + selectId + '"]');
+    if (!trigger) return;
+    var val = document.getElementById(selectId).value;
+    if (val) {
+      trigger.textContent = iconOfCategoria(val) + "  " + val;
+      trigger.classList.remove("placeholder");
+    } else {
+      trigger.textContent = "Toca para elegir categoría…";
+      trigger.classList.add("placeholder");
+    }
+  }
+
+  function renderCatPicker() {
+    var body = document.getElementById("catBody");
+    var backBtn = document.getElementById("catBackBtn");
+    var title = document.getElementById("catModalTitle");
+    var query = document.getElementById("catSearch").value.trim().toLowerCase();
+    body.innerHTML = "";
+
+    // Búsqueda activa: lista plana de coincidencias, ignora la navegación por grupos.
+    if (query) {
+      backBtn.classList.add("hidden");
+      title.textContent = "Resultados";
+      var matches = CONFIG.categorias.filter(function (c) { return c.nombre.toLowerCase().indexOf(query) !== -1; });
+      if (!matches.length) { body.innerHTML = '<div class="empty-note">Sin coincidencias.</div>'; return; }
+      var list = document.createElement("div");
+      list.className = "cat-list";
+      matches.forEach(function (c) { list.appendChild(catItemButton(c.nombre)); });
+      body.appendChild(list);
+      return;
+    }
+
+    // Nivel 2: categorías de un grupo.
+    if (catPicker.grupo) {
+      backBtn.classList.remove("hidden");
+      title.textContent = GROUP_LABELS[catPicker.grupo] || "Categorías";
+      var listG = document.createElement("div");
+      listG.className = "cat-list";
+      CONFIG.categorias.filter(function (c) { return c.grupo === catPicker.grupo; })
+        .forEach(function (c) { listG.appendChild(catItemButton(c.nombre)); });
+      body.appendChild(listG);
+      return;
+    }
+
+    // Nivel 1: frecuentes + grupos.
+    backBtn.classList.add("hidden");
+    title.textContent = "Elige una categoría";
+    var frec = categoriasFrecuentes(6);
+    if (frec.length) {
+      var t1 = document.createElement("div");
+      t1.className = "cat-section-title";
+      t1.textContent = "⭐ Las que más usas";
+      body.appendChild(t1);
+      var chips = document.createElement("div");
+      chips.className = "cat-chips";
+      frec.forEach(function (f) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "cat-chip";
+        b.textContent = iconOfCategoria(f.nombre) + " " + f.nombre;
+        b.addEventListener("click", function () { chooseCategoria(f.nombre); });
+        chips.appendChild(b);
+      });
+      body.appendChild(chips);
+    }
+    var t2 = document.createElement("div");
+    t2.className = "cat-section-title";
+    t2.textContent = "Todas las categorías";
+    body.appendChild(t2);
+    var listGroups = document.createElement("div");
+    listGroups.className = "cat-list";
+    ["necesidad", "deseo", "crecimiento", "ahorro", "deuda", "ingreso", "otro"].forEach(function (g) {
+      var count = CONFIG.categorias.filter(function (c) { return c.grupo === g; }).length;
+      if (!count) return;
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "cat-item";
+      b.innerHTML = '<span>' + GROUP_LABELS[g] + '</span><span class="chev">›</span>';
+      b.addEventListener("click", function () {
+        catPicker.grupo = g;
+        renderCatPicker();
+      });
+      listGroups.appendChild(b);
+    });
+    body.appendChild(listGroups);
+  }
+
+  function catItemButton(nombre) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "cat-item";
+    b.innerHTML = '<span>' + iconOfCategoria(nombre) + '  ' + nombre + '</span>';
+    b.addEventListener("click", function () { chooseCategoria(nombre); });
+    return b;
+  }
+  // Nombres de categoría que existieron en versiones anteriores del tablero. Se mapean a su
+  // grupo para que los movimientos ya guardados en la hoja sigan clasificándose bien.
+  var CATEGORIAS_LEGACY = {
+    "Transporte y gasolina": "necesidad",
+    "Transporte": "necesidad",
+    "Salud": "necesidad",
+    "Salidas a comer": "deseo",
+    "Café / snacks": "deseo",
+    "Salidas recreativas": "deseo",
+    "Pago tarjeta": "deuda"
+  };
   function grupoOfCategoria(cat) {
     var found = CONFIG.categorias.filter(function (c) { return c.nombre === cat; })[0];
-    return found ? found.grupo : "otro";
+    if (found) return found.grupo;
+    if (CATEGORIAS_LEGACY[cat]) return CATEGORIAS_LEGACY[cat];
+    return "otro";
   }
   var CAT_NOMBRES = CONFIG.categorias.map(function (c) { return c.nombre; });
   function catColor(cat) {
@@ -862,6 +1092,9 @@
   // ese grupo, sin importar si se capturó como Gasto o como Ahorro/Inversión — así no depende
   // de que el usuario elija el Tipo "correcto" para evitar el doble conteo.
   function esPagoDeDeuda(m) { return grupoOfCategoria(m.categoria) === "deuda"; }
+  // Un pendiente "Por pagar" cuya categoría es pago de tarjeta/préstamo: al cumplirlo hay que
+  // registrar el movimiento real para que el saldo de la tarjeta baje, no solo tacharlo.
+  function esPagoTarjetaPendiente(p) { return p.tipo === "Por pagar" && grupoOfCategoria(p.categoria) === "deuda"; }
 
   function computeBuckets(movs) {
     var ingresos = 0, necesidad = 0, deseo = 0, ahorro = 0, deuda = 0, byCatDeseo = {}, byCatNecesidad = {};
@@ -1176,7 +1409,12 @@
         '<div class="monto" style="color:' + (p.tipo === "Por cobrar" ? "var(--good)" : "var(--critical)") + ';">' + fmtMoney(p.monto) + '</div>' +
         (p.notas ? '<div class="meta">' + p.notas + '</div>' : '') +
         (warn ? '<div class="pend-warning">⚠ ' + warn + '</div>' : '') +
-        '<div class="actions"><button data-cumplir="' + p.row + '">Marcar cumplido</button> <button data-del-pend="' + p.row + '" title="Eliminar">✕ Eliminar</button></div>';
+        '<div class="actions">' +
+          (esPagoTarjetaPendiente(p)
+            ? '<button class="pend-liquidar" data-liquidar="' + p.row + '" data-liquidar-monto="' + p.monto + '">💸 Liquidar tarjeta</button>'
+            : '<button data-cumplir="' + p.row + '">Marcar cumplido</button>') +
+          ' <button data-del-pend="' + p.row + '" title="Eliminar">✕ Eliminar</button>' +
+        '</div>';
       grid.appendChild(card);
     });
   }
@@ -1223,6 +1461,7 @@
     if (!monto || monto <= 0) { toast("Ingresa un monto válido."); return; }
     var descripcion = document.getElementById("mDescripcion").value.trim();
     if (!descripcion) { toast("Agrega una descripción."); return; }
+    if (!document.getElementById("mCategoria").value) { toast("Elige una categoría."); return; }
 
     var btn = document.getElementById("movSubmitBtn");
     btn.disabled = true; btn.textContent = "Guardando…";
@@ -1259,6 +1498,7 @@
     if (!monto || monto <= 0) { toast("Ingresa un monto válido."); return; }
     var concepto = document.getElementById("pConcepto").value.trim();
     if (!concepto) { toast("Agrega un concepto."); return; }
+    if (!document.getElementById("pCategoria").value) { toast("Elige una categoría."); return; }
 
     var btn = document.getElementById("pendSubmitBtn");
     btn.disabled = true; btn.textContent = "Guardando…";
@@ -1287,30 +1527,44 @@
   }
 
   // ---------- Liquidar tarjeta (pago dedicado) ----------
-  function openPayModal(cardName, saldoSugerido) {
-    document.getElementById("payModalTitle").textContent = "Liquidar " + cardName;
+  // Puede abrirse desde el panel de saldos (cardName conocido) o desde un pendiente
+  // "Por pagar" de tarjeta (pendRow), en cuyo caso al registrar el pago también se marca
+  // ese pendiente como cumplido — así el recordatorio y el saldo real nunca se desincronizan.
+  function openPayModal(cardName, saldoSugerido, pendRow) {
+    var cards = CONFIG.tarjetas.slice();
+    state.movimientos.forEach(function (m) {
+      if (m.tarjeta && m.tarjeta !== "Efectivo" && cards.indexOf(m.tarjeta) === -1) cards.push(m.tarjeta);
+    });
+    if (cardName && cards.indexOf(cardName) === -1) cards.push(cardName);
+    populateSelect(document.getElementById("payTarjeta"), cards, null);
+    if (cardName) document.getElementById("payTarjeta").value = cardName;
+
+    document.getElementById("payModalTitle").textContent = cardName ? ("Liquidar " + cardName) : "Liquidar tarjeta";
     document.getElementById("payFecha").value = todayISO();
     document.getElementById("payMonto").value = saldoSugerido > 0 ? saldoSugerido.toFixed(2) : "";
     document.getElementById("payNotas").value = "";
     populateSelect(document.getElementById("payUsuario"), CONFIG.usuarios, null);
     if (state.currentUser && state.currentUser !== "Todos") document.getElementById("payUsuario").value = state.currentUser;
-    state.payingCard = cardName;
+    state.payingCard = cardName || null;
+    state.payingPendRow = pendRow || null;
     document.getElementById("payOverlay").classList.remove("hidden");
   }
   function closePayModal() {
     document.getElementById("payOverlay").classList.add("hidden");
     state.payingCard = null;
+    state.payingPendRow = null;
   }
   function confirmPay() {
     var monto = parseFloat(document.getElementById("payMonto").value);
     if (!monto || monto <= 0) { toast("Ingresa un monto válido."); return; }
     var fecha = document.getElementById("payFecha").value;
     if (!fecha) { toast("Selecciona una fecha."); return; }
-    var cardName = state.payingCard;
-    if (!cardName) { toast("No se identificó la tarjeta."); return; }
+    var cardName = document.getElementById("payTarjeta").value;
+    if (!cardName) { toast("Selecciona la tarjeta a liquidar."); return; }
     var usuario = document.getElementById("payUsuario").value;
     var notas = document.getElementById("payNotas").value.trim();
     var descripcion = notas || ("Pago tarjeta " + cardName);
+    var pendRow = state.payingPendRow;
 
     var btn = document.getElementById("payConfirmBtn");
     btn.disabled = true; btn.textContent = "Guardando…";
@@ -1318,7 +1572,9 @@
     var nowIso = new Date().toISOString().slice(0, 19);
     var row = [nowIso, fecha, usuario, "Gasto", "Pago tarjeta de crédito", descripcion, monto, "Positivo", cardName];
     sheetsAppend("Movimientos!A:I", row).then(function () {
-      toast("Pago registrado. Saldo actualizado.");
+      if (pendRow) return sheetsUpdate("Pendientes!H" + pendRow, ["Cumplido"]);
+    }).then(function () {
+      toast(pendRow ? "Pago registrado, saldo actualizado y pendiente cumplido." : "Pago registrado. Saldo actualizado.");
       closePayModal();
       return loadAll();
     }).catch(function (err) {
@@ -1371,6 +1627,24 @@
     populateCategorySelect(document.getElementById("pCategoria"));
     populateSelect(document.getElementById("filterUsuario"), CONFIG.usuarios, "Todos los usuarios");
 
+    // Arrancan sin categoría preseleccionada para forzar una elección consciente.
+    document.getElementById("mCategoria").value = "";
+    document.getElementById("pCategoria").value = "";
+    updateCatTrigger("mCategoria");
+    updateCatTrigger("pCategoria");
+    Array.prototype.forEach.call(document.querySelectorAll("[data-cat-trigger]"), function (btn) {
+      btn.addEventListener("click", function () { openCatPicker(btn.getAttribute("data-cat-trigger")); });
+    });
+    document.getElementById("catCloseBtn").addEventListener("click", closeCatPicker);
+    document.getElementById("catBackBtn").addEventListener("click", function () {
+      catPicker.grupo = null;
+      renderCatPicker();
+    });
+    document.getElementById("catSearch").addEventListener("input", renderCatPicker);
+    document.getElementById("catOverlay").addEventListener("click", function (e) {
+      if (e.target.id === "catOverlay") closeCatPicker();
+    });
+
     document.getElementById("mFecha").value = todayISO();
     document.getElementById("pFecha").value = todayISO();
     document.getElementById("monthPicker").value = currentMonthValue();
@@ -1420,6 +1694,12 @@
       document.getElementById(id).addEventListener("change", renderTable);
     });
     document.getElementById("pendGrid").addEventListener("click", function (e) {
+      var liquidarBtn = e.target.closest("button[data-liquidar]");
+      if (liquidarBtn) {
+        openPayModal(null, parseFloat(liquidarBtn.getAttribute("data-liquidar-monto")) || 0,
+          parseInt(liquidarBtn.getAttribute("data-liquidar"), 10));
+        return;
+      }
       var cumplirBtn = e.target.closest("button[data-cumplir]");
       if (cumplirBtn) { marcarCumplido(parseInt(cumplirBtn.getAttribute("data-cumplir"), 10)); return; }
       var delBtn = e.target.closest("button[data-del-pend]");
