@@ -81,6 +81,8 @@
     background: var(--page); color: var(--text-primary); font-size: 15px; font-weight: 600; cursor: pointer;
   }
   .who-options button:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .who-divider { font-size: 11px; color: var(--text-muted); margin: 2px 0; }
+  .who-options .who-all { background: transparent; border-style: dashed; }
   .theme-toggle, .btn-secondary {
     border: 1px solid var(--border); background: var(--surface-1);
     color: var(--text-secondary); border-radius: 8px; padding: 8px 12px;
@@ -221,6 +223,16 @@
   .projection-box { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; }
   .projection-num { font-size: 26px; font-weight: 800; white-space: nowrap; }
 
+  .contrib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .contrib-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--page); }
+  .contrib-card.is-you { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .contrib-card .name { font-size: 14px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .contrib-card .you-tag { font-size: 10px; font-weight: 600; color: var(--accent); background: rgba(42,120,214,0.14); padding: 1px 6px; border-radius: 999px; }
+  .contrib-card .row { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 4px; }
+  .contrib-card .row .val { font-variant-numeric: tabular-nums; color: var(--text-primary); font-weight: 600; }
+  .contrib-card .share-bar { height: 6px; border-radius: 3px; background: var(--grid); margin-top: 8px; overflow: hidden; }
+  .contrib-card .share-fill { height: 100%; }
+
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: var(--text-primary); color: var(--surface-1); padding: 9px 16px; border-radius: 8px;
@@ -281,6 +293,11 @@
         <h2>Tendencia — ingresos, gastos y ahorro <span class="count">últimos 6 meses</span></h2>
         <div class="trend-chart" id="trendChart"></div>
         <div class="trend-legend" id="trendLegend"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Contribución por usuario <span class="count" id="contribRange"></span></h2>
+        <div class="contrib-grid" id="contribGrid"></div>
       </div>
 
       <div class="panel">
@@ -504,6 +521,12 @@
     if (idx === -1) idx = 0;
     return CAT_PALETTE[idx % CAT_PALETTE.length];
   }
+  var USER_PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#c94a3f", "#9a7a3a"];
+  function userColor(name) {
+    var idx = CONFIG.usuarios.indexOf(name);
+    if (idx === -1) idx = CONFIG.usuarios.length;
+    return USER_PALETTE[idx % USER_PALETTE.length];
+  }
   function tipoBadgeClass(tipo) {
     if (tipo === "Gasto") return "gasto";
     if (tipo === "Ahorro/Inversión") return "ahorro";
@@ -547,27 +570,39 @@
   function showWhoOverlay() {
     var opts = document.getElementById("whoOptions");
     opts.innerHTML = "";
-    CONFIG.usuarios.forEach(function (u) {
+    function addOption(label, value, extraClass) {
       var btn = document.createElement("button");
       btn.type = "button";
-      btn.textContent = u;
+      btn.textContent = label;
+      if (extraClass) btn.className = extraClass;
       btn.addEventListener("click", function () {
-        setStoredUser(u);
-        applyUser(u);
+        setStoredUser(value);
+        applyUser(value);
         document.getElementById("whoOverlay").classList.add("hidden");
       });
       opts.appendChild(btn);
-    });
+    }
+    CONFIG.usuarios.forEach(function (u) { addOption(u, u); });
+    var divider = document.createElement("div");
+    divider.className = "who-divider";
+    divider.textContent = "o";
+    opts.appendChild(divider);
+    addOption("👀 Todos (ver estadísticas globales)", "Todos", "who-all");
     document.getElementById("whoOverlay").classList.remove("hidden");
   }
   function applyUser(name) {
     state.currentUser = name;
-    document.getElementById("mUsuario").value = name;
-    document.getElementById("pUsuario").value = name;
     var greet = document.getElementById("whoGreeting");
-    greet.textContent = "Hola, " + name;
+    if (name === "Todos") {
+      greet.textContent = "Viendo: Todos";
+    } else {
+      document.getElementById("mUsuario").value = name;
+      document.getElementById("pUsuario").value = name;
+      greet.textContent = "Hola, " + name;
+    }
     greet.classList.remove("hidden");
     document.getElementById("changeUserBtn").classList.remove("hidden");
+    render();
   }
 
   function logout() {
@@ -719,6 +754,7 @@
     renderProjection();
     renderBudgetBuckets();
     renderCategoryChart();
+    renderContribution();
     renderPendientes();
     renderTable();
   }
@@ -960,6 +996,44 @@
         '<div class="bar-track"><div class="bar-fill" style="width:' + (e[1]/maxVal*100) + '%;background:' + catColor(e[0]) + ';"></div></div>' +
         '<div class="amt">' + fmtMoney(e[1]) + '</div>';
       el.appendChild(row);
+    });
+  }
+
+  function renderContribution() {
+    var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha); });
+    document.getElementById("contribRange").textContent = "— " + currentPeriodLabel();
+    var names = CONFIG.usuarios.slice();
+    movs.forEach(function (m) { if (m.usuario && names.indexOf(m.usuario) === -1) names.push(m.usuario); });
+    var el = document.getElementById("contribGrid");
+    el.innerHTML = "";
+    if (!movs.length) { el.innerHTML = '<div class="empty-note">Sin movimientos en este periodo.</div>'; return; }
+
+    var totals = {};
+    names.forEach(function (n) { totals[n] = { ingresos: 0, gastos: 0, ahorro: 0, count: 0 }; });
+    movs.forEach(function (m) {
+      if (!m.usuario || !totals[m.usuario]) return;
+      totals[m.usuario].count++;
+      if (m.tipo === "Ingreso") totals[m.usuario].ingresos += m.monto;
+      else if (m.tipo === "Ahorro/Inversión") totals[m.usuario].ahorro += m.monto;
+      else totals[m.usuario].gastos += m.monto;
+    });
+    var totalGastoHogar = names.reduce(function (s, n) { return s + totals[n].gastos; }, 0) || 0.01;
+
+    names.forEach(function (n) {
+      var t = totals[n];
+      var bal = t.ingresos - t.gastos - t.ahorro;
+      var sharePct = t.gastos / totalGastoHogar * 100;
+      var card = document.createElement("div");
+      card.className = "contrib-card" + (state.currentUser === n ? " is-you" : "");
+      card.innerHTML =
+        '<div class="name">' + n + (state.currentUser === n ? ' <span class="you-tag">Tú</span>' : '') + '</div>' +
+        '<div class="row"><span>Ingresos</span><span class="val" style="color:var(--good);">' + fmtMoney(t.ingresos) + '</span></div>' +
+        '<div class="row"><span>Gastos</span><span class="val" style="color:var(--critical);">' + fmtMoney(t.gastos) + '</span></div>' +
+        '<div class="row"><span>Ahorro</span><span class="val">' + fmtMoney(t.ahorro) + '</span></div>' +
+        '<div class="row"><span>Balance</span><span class="val" style="color:' + (bal >= 0 ? "var(--good)" : "var(--critical)") + ';">' + (bal >= 0 ? "+" : "") + fmtMoney(bal) + '</span></div>' +
+        '<div class="share-bar"><div class="share-fill" style="width:' + Math.min(sharePct, 100) + '%;background:' + userColor(n) + ';"></div></div>' +
+        '<div class="row" style="margin-top:4px;"><span>% del gasto familiar</span><span class="val">' + sharePct.toFixed(0) + '%</span></div>';
+      el.appendChild(card);
     });
   }
 
