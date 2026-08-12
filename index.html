@@ -110,6 +110,13 @@
     border-radius: 8px; background: var(--page); color: var(--text-primary);
   }
   .form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
+  .add-tarjeta { display: flex; gap: 6px; }
+  .add-tarjeta select { flex: 1; }
+  .add-tarjeta button {
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    border-radius: 8px; width: 34px; cursor: pointer; font-size: 15px; flex: none;
+  }
+  .add-tarjeta button:hover { background: var(--page); }
 
   .chart-block { margin-top: 4px; }
   .bar-row { display: grid; grid-template-columns: 160px 1fr 84px; gap: 10px; align-items: center; margin-bottom: 10px; }
@@ -138,6 +145,12 @@
   .tipo-badge.gasto { background: rgba(201,74,63,0.14); color: var(--critical); }
   .tipo-badge.ingreso { background: rgba(26,125,58,0.14); color: var(--good); }
   .tipo-badge.ahorro { background: rgba(42,120,214,0.14); color: var(--info); }
+  .row-actions { text-align: right; }
+  .row-actions button {
+    border: none; background: transparent; color: var(--text-muted);
+    cursor: pointer; font-size: 14px; padding: 3px 6px; border-radius: 6px;
+  }
+  .row-actions button:hover { color: var(--critical); background: var(--page); }
 
   .pend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
   .pend-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--page); }
@@ -274,7 +287,13 @@
           <div class="field full"><label>Descripción</label><input type="text" id="mDescripcion" required></div>
           <div class="field"><label>Monto (MXN)</label><input type="number" id="mMonto" step="0.01" min="0" required></div>
           <div class="field"><label>Impacto</label><select id="mImpacto"></select></div>
-          <div class="field"><label>Tarjeta / cuenta</label><select id="mTarjeta"></select></div>
+          <div class="field">
+            <label>Tarjeta / cuenta</label>
+            <div class="add-tarjeta">
+              <select id="mTarjeta"></select>
+              <button type="button" id="addTarjetaBtn" title="Agregar tarjeta o cuenta">+</button>
+            </div>
+          </div>
           <div class="form-actions"><button type="submit" class="btn-primary" id="movSubmitBtn">Agregar movimiento</button></div>
         </form>
       </div>
@@ -308,7 +327,7 @@
         </div>
         <div style="overflow-x:auto;">
           <table>
-            <thead><tr><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Tarjeta</th><th class="amt">Monto</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Tarjeta</th><th class="amt">Monto</th><th></th></tr></thead>
             <tbody id="tableBody"></tbody>
           </table>
         </div>
@@ -377,7 +396,7 @@
       { nombre: "Otro ingreso", grupo: "ingreso" }
     ],
     impactos: ["Positivo", "Neutro", "Negativo"],
-    tarjetas: ["BBVA", "Santander", "Banamex", "Amex", "Efectivo", "N/A"]
+    tarjetas: ["BBVA", "Santander", "Banamex", "Amex", "Mercado Pago", "Nu", "Banco Azteca", "HSBC", "Scotiabank", "Klar", "Efectivo", "N/A"]
   };
 
   var GROUP_LABELS = {
@@ -535,6 +554,13 @@
       method: "PUT",
       headers: { Authorization: "Bearer " + state.accessToken, "Content-Type": "application/json" },
       body: JSON.stringify({ values: [values] })
+    }).then(function (r) { if (!r.ok) return sheetsErrorDetail(r); return r.json(); });
+  }
+  function sheetsClear(range) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range) + ":clear";
+    return fetch(url, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + state.accessToken, "Content-Type": "application/json" }
     }).then(function (r) { if (!r.ok) return sheetsErrorDetail(r); return r.json(); });
   }
 
@@ -890,7 +916,7 @@
         '<div class="monto" style="color:' + (p.tipo === "Por cobrar" ? "var(--good)" : "var(--critical)") + ';">' + fmtMoney(p.monto) + '</div>' +
         (p.notas ? '<div class="meta">' + p.notas + '</div>' : '') +
         (warn ? '<div class="pend-warning">⚠ ' + warn + '</div>' : '') +
-        '<div class="actions"><button data-cumplir="' + p.row + '">Marcar cumplido</button></div>';
+        '<div class="actions"><button data-cumplir="' + p.row + '">Marcar cumplido</button> <button data-del-pend="' + p.row + '" title="Eliminar">✕ Eliminar</button></div>';
       grid.appendChild(card);
     });
   }
@@ -922,7 +948,8 @@
         '<td>' + m.categoria + '</td>' +
         '<td>' + m.descripcion + '</td>' +
         '<td>' + m.tarjeta + '</td>' +
-        '<td class="amt">' + fmtMoney(m.monto) + '</td>';
+        '<td class="amt">' + fmtMoney(m.monto) + '</td>' +
+        '<td class="row-actions"><button data-del-mov="' + m.row + '" title="Eliminar">✕</button></td>';
       tbody.appendChild(tr);
     });
   }
@@ -1009,6 +1036,28 @@
     });
   }
 
+  function deleteMovimiento(rowNum) {
+    if (!confirm("¿Eliminar este movimiento? Esta acción no se puede deshacer.")) return;
+    sheetsClear("Movimientos!A" + rowNum + ":I" + rowNum).then(function () {
+      toast("Movimiento eliminado.");
+      return loadAll();
+    }).catch(function (err) {
+      console.error(err);
+      toast("No se pudo eliminar: " + (err && err.message ? err.message : "error desconocido"), 7000);
+    });
+  }
+
+  function deletePendiente(rowNum) {
+    if (!confirm("¿Eliminar este pendiente? Esta acción no se puede deshacer.")) return;
+    sheetsClear("Pendientes!A" + rowNum + ":J" + rowNum).then(function () {
+      toast("Pendiente eliminado.");
+      return loadAll();
+    }).catch(function (err) {
+      console.error(err);
+      toast("No se pudo eliminar: " + (err && err.message ? err.message : "error desconocido"), 7000);
+    });
+  }
+
   // ---------- Init ----------
   function init() {
     populateSelect(document.getElementById("mUsuario"), CONFIG.usuarios, null);
@@ -1031,6 +1080,15 @@
     });
     document.getElementById("logoutBtn").addEventListener("click", logout);
     document.getElementById("refreshBtn").addEventListener("click", loadAll);
+    document.getElementById("addTarjetaBtn").addEventListener("click", function () {
+      var name = prompt("Nombre de la tarjeta, banco, billetera o cuenta nueva (ej. Mercado Pago, Nu, Banco Azteca):");
+      if (name && name.trim()) {
+        name = name.trim();
+        if (CONFIG.tarjetas.indexOf(name) === -1) CONFIG.tarjetas.push(name);
+        populateSelect(document.getElementById("mTarjeta"), CONFIG.tarjetas, null);
+        document.getElementById("mTarjeta").value = name;
+      }
+    });
 
     document.getElementById("monthPicker").addEventListener("change", function (e) {
       state.selectedMonth = e.target.value; state.showAll = false; render();
@@ -1045,9 +1103,15 @@
       document.getElementById(id).addEventListener("change", renderTable);
     });
     document.getElementById("pendGrid").addEventListener("click", function (e) {
-      var btn = e.target.closest("button[data-cumplir]");
-      if (!btn) return;
-      marcarCumplido(parseInt(btn.getAttribute("data-cumplir"), 10));
+      var cumplirBtn = e.target.closest("button[data-cumplir]");
+      if (cumplirBtn) { marcarCumplido(parseInt(cumplirBtn.getAttribute("data-cumplir"), 10)); return; }
+      var delBtn = e.target.closest("button[data-del-pend]");
+      if (delBtn) { deletePendiente(parseInt(delBtn.getAttribute("data-del-pend"), 10)); return; }
+    });
+    document.getElementById("tableBody").addEventListener("click", function (e) {
+      var delBtn = e.target.closest("button[data-del-mov]");
+      if (!delBtn) return;
+      deleteMovimiento(parseInt(delBtn.getAttribute("data-del-mov"), 10));
     });
 
     document.getElementById("themeToggle").addEventListener("click", function () {
