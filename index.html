@@ -110,9 +110,10 @@
   }
   .month-row .month-label { font-size: 13px; color: var(--text-secondary); }
 
-  .stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 22px; }
-  @media (max-width: 900px) { .stat-row { grid-template-columns: repeat(3, 1fr); } }
+  .stat-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 22px; }
+  @media (max-width: 1024px) { .stat-row { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 560px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+  .stat-tile .label span[title] { cursor: help; color: var(--text-muted); }
   .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
   .stat-tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
   .stat-tile .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -279,6 +280,7 @@
         <div class="stat-tile"><div class="label">Ingresos del periodo</div><div class="value good" id="statIngresos">$0.00</div></div>
         <div class="stat-tile"><div class="label">Gastos del periodo</div><div class="value critical" id="statGastos">$0.00</div></div>
         <div class="stat-tile"><div class="label">Ahorrado / invertido</div><div class="value good" id="statAhorro">$0.00</div></div>
+        <div class="stat-tile"><div class="label">Pagos a deuda <span title="Tarjeta/préstamo — no cuenta como gasto nuevo, la compra ya se contó al hacerse">ⓘ</span></div><div class="value" id="statDeuda">$0.00</div></div>
         <div class="stat-tile"><div class="label">Balance sin asignar</div><div class="value" id="statBalance">$0.00</div></div>
         <div class="stat-tile"><div class="label">Movimientos</div><div class="value" id="statCount">0</div></div>
       </div>
@@ -315,6 +317,9 @@
 
       <div class="panel">
         <h2>Agregar movimiento</h2>
+        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
+          <strong>Regla clave para no duplicar gastos:</strong> registra cada compra en su categoría real (Comida, Ropa, etc.) el día que la haces, sin importar si pagaste con tarjeta o efectivo — usa "Tarjeta / cuenta" solo para anotar el medio de pago. Cuando después liquides tu tarjeta, usa la categoría <strong>"Pago tarjeta de crédito"</strong>: el tablero la excluye automáticamente de "Gastos" (esa compra ya se contó), y solo la resta de tu efectivo disponible. Así evitas contar la misma compra dos veces.
+        </p>
         <form class="entry-form" id="movForm">
           <div class="field"><label>Fecha</label><input type="date" id="mFecha" required></div>
           <div class="field"><label>Usuario</label><select id="mUsuario"></select></div>
@@ -427,8 +432,11 @@
       { nombre: "Fondo de emergencia", grupo: "ahorro" },
       { nombre: "Ahorro para una meta", grupo: "ahorro" },
       { nombre: "Inversión / Retiro (Afore)", grupo: "ahorro" },
-      { nombre: "Pago tarjeta de crédito", grupo: "ahorro" },
-      { nombre: "Pago de préstamo / crédito automotriz", grupo: "ahorro" },
+      // Pagos a deuda: liquidan compras que YA se registraron como gasto en su categoría real
+      // (comida, ropa, etc.) al momento de comprarlas. Por eso NO cuentan como gasto nuevo aquí,
+      // para no contarlas dos veces.
+      { nombre: "Pago tarjeta de crédito", grupo: "deuda" },
+      { nombre: "Pago de préstamo / crédito automotriz", grupo: "deuda" },
       // Otro
       { nombre: "Otro gasto", grupo: "otro" },
       // Ingresos
@@ -447,11 +455,15 @@
     necesidad: "🏠 Necesidades",
     deseo: "🎉 Deseos / estilo de vida",
     crecimiento: "📚 Crecimiento personal",
-    ahorro: "💰 Ahorro, inversión y deudas",
+    ahorro: "💰 Ahorro e inversión",
+    deuda: "💳 Pago de tarjeta / préstamo (no cuenta como gasto nuevo)",
     otro: "❓ Otro",
     ingreso: "💵 Ingresos"
   };
   // Para el cálculo 50/30/20: crecimiento y otro se cuentan como "deseo" (gasto discrecional).
+  // "deuda" (pagos a tarjeta/préstamo) queda fuera a propósito: esa compra ya se contó como
+  // gasto en su categoría real al momento de hacerse, así que el pago solo liquida un saldo
+  // que ya existía y no debe sumarse de nuevo (evita el doble conteo).
   var BUCKET_MAP = { necesidad: "necesidad", deseo: "deseo", crecimiento: "deseo", otro: "deseo", ahorro: "ahorro", ingreso: "ingreso" };
 
   var CAT_PALETTE = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#4a3aa7","#c94a3f","#4a9a6e",
@@ -499,7 +511,7 @@
       groups[c.grupo] = groups[c.grupo] || [];
       groups[c.grupo].push(c.nombre);
     });
-    ["necesidad", "deseo", "crecimiento", "ahorro", "otro", "ingreso"].forEach(function (g) {
+    ["necesidad", "deseo", "crecimiento", "ahorro", "deuda", "otro", "ingreso"].forEach(function (g) {
       if (!groups[g]) return;
       var og = document.createElement("optgroup");
       og.label = GROUP_LABELS[g];
@@ -761,16 +773,20 @@
 
   function renderStats() {
     var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha); });
-    var ingresos = 0, gastos = 0, ahorro = 0;
+    var ingresos = 0, gastos = 0, ahorro = 0, deuda = 0;
     movs.forEach(function (m) {
-      if (m.tipo === "Ingreso") ingresos += m.monto;
-      else if (m.tipo === "Ahorro/Inversión") ahorro += m.monto;
+      if (m.tipo === "Ingreso") { ingresos += m.monto; return; }
+      // Pagar la tarjeta/préstamo no es un gasto nuevo: la compra ya se contó en su categoría
+      // real cuando se hizo. Aquí solo se resta del efectivo disponible, aparte de "Gastos".
+      if (esPagoDeDeuda(m)) { deuda += m.monto; return; }
+      if (m.tipo === "Ahorro/Inversión") ahorro += m.monto;
       else gastos += m.monto;
     });
     document.getElementById("statIngresos").textContent = fmtMoney(ingresos);
     document.getElementById("statGastos").textContent = fmtMoney(gastos);
     document.getElementById("statAhorro").textContent = fmtMoney(ahorro);
-    var bal = ingresos - gastos - ahorro;
+    document.getElementById("statDeuda").textContent = fmtMoney(deuda);
+    var bal = ingresos - gastos - ahorro - deuda;
     var balEl = document.getElementById("statBalance");
     balEl.textContent = (bal >= 0 ? "+" : "") + fmtMoney(bal);
     balEl.className = "value " + (bal >= 0 ? "good" : "critical");
@@ -780,17 +796,23 @@
   }
 
   // Agrupa una lista de movimientos en necesidad/deseo/ahorro/ingresos (regla 50/30/20).
+  // Un movimiento cuenta como "deuda" (pago de tarjeta/préstamo) si su categoría pertenece a
+  // ese grupo, sin importar si se capturó como Gasto o como Ahorro/Inversión — así no depende
+  // de que el usuario elija el Tipo "correcto" para evitar el doble conteo.
+  function esPagoDeDeuda(m) { return grupoOfCategoria(m.categoria) === "deuda"; }
+
   function computeBuckets(movs) {
-    var ingresos = 0, necesidad = 0, deseo = 0, ahorro = 0, byCatDeseo = {}, byCatNecesidad = {};
+    var ingresos = 0, necesidad = 0, deseo = 0, ahorro = 0, deuda = 0, byCatDeseo = {}, byCatNecesidad = {};
     movs.forEach(function (m) {
       if (m.tipo === "Ingreso") { ingresos += m.monto; return; }
+      if (esPagoDeDeuda(m)) { deuda += m.monto; return; }
       if (m.tipo === "Ahorro/Inversión") { ahorro += m.monto; return; }
       var bucket = BUCKET_MAP[grupoOfCategoria(m.categoria)] || "deseo";
       if (bucket === "necesidad") { necesidad += m.monto; byCatNecesidad[m.categoria] = (byCatNecesidad[m.categoria] || 0) + m.monto; }
       else if (bucket === "ahorro") ahorro += m.monto;
       else { deseo += m.monto; byCatDeseo[m.categoria] = (byCatDeseo[m.categoria] || 0) + m.monto; }
     });
-    return { ingresos: ingresos, necesidad: necesidad, deseo: deseo, ahorro: ahorro, byCatDeseo: byCatDeseo, byCatNecesidad: byCatNecesidad };
+    return { ingresos: ingresos, necesidad: necesidad, deseo: deseo, ahorro: ahorro, deuda: deuda, byCatDeseo: byCatDeseo, byCatNecesidad: byCatNecesidad };
   }
 
   function renderBudgetBuckets() {
@@ -835,8 +857,9 @@
     state.movimientos.forEach(function (m) {
       if (!m.fecha) return;
       var key = isoFromDate(m.fecha).slice(0, 7);
-      if (!map[key]) map[key] = { ingresos: 0, gastos: 0, ahorro: 0 };
+      if (!map[key]) map[key] = { ingresos: 0, gastos: 0, ahorro: 0, deuda: 0 };
       if (m.tipo === "Ingreso") map[key].ingresos += m.monto;
+      else if (esPagoDeDeuda(m)) map[key].deuda += m.monto;
       else if (m.tipo === "Ahorro/Inversión") map[key].ahorro += m.monto;
       else map[key].gastos += m.monto;
     });
@@ -878,7 +901,7 @@
     var withData = months.filter(function (mo) { return !!totals[mo.key]; });
     var block = document.getElementById("projectionBlock");
     if (!withData.length) { block.innerHTML = '<div class="empty-note">Agrega movimientos de al menos un mes para ver tu proyección.</div>'; return; }
-    var nets = withData.map(function (mo) { var t = totals[mo.key]; return t.ingresos - t.gastos; });
+    var nets = withData.map(function (mo) { var t = totals[mo.key]; return t.ingresos - t.gastos - t.deuda; });
     var avg = nets.reduce(function (a, b) { return a + b; }, 0) / nets.length;
     var proj3 = avg * 3;
     var positive = proj3 >= 0;
@@ -910,7 +933,7 @@
       var t = totals[mo.key];
       if (!t) return;
       sampled++;
-      if ((t.ingresos - t.gastos) < 0) negMonths++;
+      if ((t.ingresos - t.gastos - t.deuda) < 0) negMonths++;
     });
 
     var emergencyFundTotal = state.movimientos.filter(function (m) { return m.categoria === "Fondo de emergencia"; }).reduce(function (s, m) { return s + m.monto; }, 0);
@@ -981,7 +1004,7 @@
   }
 
   function renderCategoryChart() {
-    var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha) && m.tipo === "Gasto"; });
+    var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha) && m.tipo === "Gasto" && !esPagoDeDeuda(m); });
     var byCat = {};
     movs.forEach(function (m) { byCat[m.categoria] = (byCat[m.categoria] || 0) + m.monto; });
     var entries = Object.keys(byCat).map(function (k) { return [k, byCat[k]]; }).sort(function (a,b) { return b[1]-a[1]; });
@@ -1009,11 +1032,12 @@
     if (!movs.length) { el.innerHTML = '<div class="empty-note">Sin movimientos en este periodo.</div>'; return; }
 
     var totals = {};
-    names.forEach(function (n) { totals[n] = { ingresos: 0, gastos: 0, ahorro: 0, count: 0 }; });
+    names.forEach(function (n) { totals[n] = { ingresos: 0, gastos: 0, ahorro: 0, deuda: 0, count: 0 }; });
     movs.forEach(function (m) {
       if (!m.usuario || !totals[m.usuario]) return;
       totals[m.usuario].count++;
       if (m.tipo === "Ingreso") totals[m.usuario].ingresos += m.monto;
+      else if (esPagoDeDeuda(m)) totals[m.usuario].deuda += m.monto;
       else if (m.tipo === "Ahorro/Inversión") totals[m.usuario].ahorro += m.monto;
       else totals[m.usuario].gastos += m.monto;
     });
@@ -1021,7 +1045,7 @@
 
     names.forEach(function (n) {
       var t = totals[n];
-      var bal = t.ingresos - t.gastos - t.ahorro;
+      var bal = t.ingresos - t.gastos - t.ahorro - t.deuda;
       var sharePct = t.gastos / totalGastoHogar * 100;
       var card = document.createElement("div");
       card.className = "contrib-card" + (state.currentUser === n ? " is-you" : "");
@@ -1030,6 +1054,7 @@
         '<div class="row"><span>Ingresos</span><span class="val" style="color:var(--good);">' + fmtMoney(t.ingresos) + '</span></div>' +
         '<div class="row"><span>Gastos</span><span class="val" style="color:var(--critical);">' + fmtMoney(t.gastos) + '</span></div>' +
         '<div class="row"><span>Ahorro</span><span class="val">' + fmtMoney(t.ahorro) + '</span></div>' +
+        (t.deuda > 0 ? '<div class="row"><span>Pagos a deuda</span><span class="val">' + fmtMoney(t.deuda) + '</span></div>' : '') +
         '<div class="row"><span>Balance</span><span class="val" style="color:' + (bal >= 0 ? "var(--good)" : "var(--critical)") + ';">' + (bal >= 0 ? "+" : "") + fmtMoney(bal) + '</span></div>' +
         '<div class="share-bar"><div class="share-fill" style="width:' + Math.min(sharePct, 100) + '%;background:' + userColor(n) + ';"></div></div>' +
         '<div class="row" style="margin-top:4px;"><span>% del gasto familiar</span><span class="val">' + sharePct.toFixed(0) + '%</span></div>';
