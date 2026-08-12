@@ -174,7 +174,7 @@
 
   .pend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
   .pend-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--page); }
-  .pend-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+  .pend-card .top-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
   .pend-card .concepto { font-size: 14px; font-weight: 600; }
   .pend-card .meta { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
   .pend-card .monto { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; margin-bottom: 6px; }
@@ -725,15 +725,18 @@
   }
 
   // ---------- Semáforo / advertencia de pendientes ----------
+  function diasLabel(n) { return n === 1 ? "1 día" : n + " días"; }
+
   function semaforoInfo(p) {
     if (p.estado === "Cumplido") return { key: "cumplido", label: "✅ Cumplido" };
     var today = new Date(); today.setUTCHours(0,0,0,0);
     var todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
     var due = Date.UTC(p.fechaLimite.getUTCFullYear(), p.fechaLimite.getUTCMonth(), p.fechaLimite.getUTCDate());
     var diffDays = Math.round((due - todayUTC) / 86400000);
-    if (diffDays < 0) return { key: "vencido", label: "⚠ Vencido" };
-    if (diffDays <= 5) return { key: "proximo", label: "🟡 Próximo" };
-    return { key: "en-tiempo", label: "🔵 En tiempo" };
+    if (diffDays < 0) return { key: "vencido", label: "⚠ Vencido hace " + diasLabel(Math.abs(diffDays)) };
+    if (diffDays === 0) return { key: "proximo", label: "🟡 Vence hoy" };
+    if (diffDays <= 5) return { key: "proximo", label: "🟡 Próximo — " + diasLabel(diffDays) };
+    return { key: "en-tiempo", label: "🔵 En tiempo — " + diasLabel(diffDays) };
   }
 
   function coverageWarning(pago) {
