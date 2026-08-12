@@ -91,8 +91,9 @@
   }
   .month-row .month-label { font-size: 13px; color: var(--text-secondary); }
 
-  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
-  @media (max-width: 720px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+  .stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 22px; }
+  @media (max-width: 900px) { .stat-row { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 560px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
   .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
   .stat-tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
   .stat-tile .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -136,6 +137,7 @@
   .tipo-badge { font-size: 11px; padding: 2px 7px; border-radius: 999px; font-weight: 600; }
   .tipo-badge.gasto { background: rgba(201,74,63,0.14); color: var(--critical); }
   .tipo-badge.ingreso { background: rgba(26,125,58,0.14); color: var(--good); }
+  .tipo-badge.ahorro { background: rgba(42,120,214,0.14); color: var(--info); }
 
   .pend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
   .pend-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--page); }
@@ -202,8 +204,17 @@
       <div class="stat-row">
         <div class="stat-tile"><div class="label">Ingresos del periodo</div><div class="value good" id="statIngresos">$0.00</div></div>
         <div class="stat-tile"><div class="label">Gastos del periodo</div><div class="value critical" id="statGastos">$0.00</div></div>
-        <div class="stat-tile"><div class="label">Balance</div><div class="value" id="statBalance">$0.00</div></div>
+        <div class="stat-tile"><div class="label">Ahorrado / invertido</div><div class="value good" id="statAhorro">$0.00</div></div>
+        <div class="stat-tile"><div class="label">Balance sin asignar</div><div class="value" id="statBalance">$0.00</div></div>
         <div class="stat-tile"><div class="label">Movimientos</div><div class="value" id="statCount">0</div></div>
+      </div>
+
+      <div class="panel">
+        <h2>Tu presupuesto <span class="count">— regla 50/30/20</span></h2>
+        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
+          Meta sugerida por expertos en finanzas personales: 50% necesidades, 30% deseos, 20% ahorro o pago acelerado de deudas (tarjetas, préstamos). El ahorro se calcula antes de gastar, no con lo que sobra.
+        </p>
+        <div class="chart-block" id="budgetBuckets"></div>
       </div>
 
       <div class="panel">
@@ -211,7 +222,7 @@
         <form class="entry-form" id="movForm">
           <div class="field"><label>Fecha</label><input type="date" id="mFecha" required></div>
           <div class="field"><label>Usuario</label><select id="mUsuario"></select></div>
-          <div class="field"><label>Tipo</label><select id="mTipo"><option value="Gasto">Gasto</option><option value="Ingreso">Ingreso</option></select></div>
+          <div class="field"><label>Tipo</label><select id="mTipo"><option value="Gasto">Gasto</option><option value="Ingreso">Ingreso</option><option value="Ahorro/Inversión">Ahorro / Inversión</option></select></div>
           <div class="field"><label>Categoría</label><select id="mCategoria"></select></div>
           <div class="field full"><label>Descripción</label><input type="text" id="mDescripcion" required></div>
           <div class="field"><label>Monto (MXN)</label><input type="number" id="mMonto" step="0.01" min="0" required></div>
@@ -245,7 +256,7 @@
         <h2>Movimientos <span class="count" id="moveCount"></span></h2>
         <div class="filters-row">
           <input type="text" id="searchBox" placeholder="Buscar descripción...">
-          <select id="filterTipo"><option value="">Todos los tipos</option><option value="Gasto">Gasto</option><option value="Ingreso">Ingreso</option></select>
+          <select id="filterTipo"><option value="">Todos los tipos</option><option value="Gasto">Gasto</option><option value="Ingreso">Ingreso</option><option value="Ahorro/Inversión">Ahorro/Inversión</option></select>
           <select id="filterUsuario"><option value="">Todos los usuarios</option></select>
         </div>
         <div style="overflow-x:auto;">
@@ -273,20 +284,68 @@
   var SHEET_ID = "1A0G4oT3sS5OAJYczm3MgDoYJOLLvuhjXd0cDJR6hK2w";
   var SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 
+  // Categorías organizadas según la regla 50/30/20 (Elizabeth Warren / Finhabits) y las
+  // recomendaciones de la Condusef sobre gastos hormiga y fondo de emergencia (3-6 meses).
   var CONFIG = {
     usuarios: ["Pablo", "Mamá", "Otro/a"],
     categorias: [
-      "Casa / Renta", "Servicios (luz, agua, gas, internet)", "Despensa / Súper",
-      "Salidas a comer", "Salidas recreativas", "Tiendita / antojos", "Transporte",
-      "Ropa y accesorios", "Salud", "Cursos / Educación", "Suscripciones (Netflix, etc.)",
-      "Pago tarjeta de crédito", "Otro gasto", "Sueldo / Nómina", "Ventas",
-      "Servicios prestados", "Dinero de familiares", "Otro ingreso"
+      // Necesidades
+      { nombre: "Casa / Renta", grupo: "necesidad" },
+      { nombre: "Mantenimiento del hogar", grupo: "necesidad" },
+      { nombre: "Servicios (luz, agua, gas, internet)", grupo: "necesidad" },
+      { nombre: "Despensa / Súper", grupo: "necesidad" },
+      { nombre: "Transporte y gasolina", grupo: "necesidad" },
+      { nombre: "Salud y medicinas", grupo: "necesidad" },
+      { nombre: "Seguros (auto, vida, gastos médicos)", grupo: "necesidad" },
+      { nombre: "Colegiaturas / Cuidado de hijos", grupo: "necesidad" },
+      { nombre: "Pago mínimo de deudas", grupo: "necesidad" },
+      // Deseos / estilo de vida
+      { nombre: "Salidas a comer", grupo: "deseo" },
+      { nombre: "Salidas recreativas", grupo: "deseo" },
+      { nombre: "Tiendita / antojos (gastos hormiga)", grupo: "deseo" },
+      { nombre: "Ropa y accesorios", grupo: "deseo" },
+      { nombre: "Cuidado personal / Belleza", grupo: "deseo" },
+      { nombre: "Suscripciones (Netflix, etc.)", grupo: "deseo" },
+      { nombre: "Viajes y vacaciones", grupo: "deseo" },
+      { nombre: "Regalos y donativos", grupo: "deseo" },
+      { nombre: "Mascotas", grupo: "deseo" },
+      { nombre: "Hobbies y pasatiempos", grupo: "deseo" },
+      // Crecimiento personal
+      { nombre: "Cursos / Educación", grupo: "crecimiento" },
+      { nombre: "Libros y material educativo", grupo: "crecimiento" },
+      // Ahorro, inversión y pago acelerado de deudas
+      { nombre: "Fondo de emergencia", grupo: "ahorro" },
+      { nombre: "Ahorro para una meta", grupo: "ahorro" },
+      { nombre: "Inversión / Retiro (Afore)", grupo: "ahorro" },
+      { nombre: "Pago tarjeta de crédito", grupo: "ahorro" },
+      { nombre: "Pago de préstamo / crédito automotriz", grupo: "ahorro" },
+      // Otro
+      { nombre: "Otro gasto", grupo: "otro" },
+      // Ingresos
+      { nombre: "Sueldo / Nómina", grupo: "ingreso" },
+      { nombre: "Ventas", grupo: "ingreso" },
+      { nombre: "Servicios prestados", grupo: "ingreso" },
+      { nombre: "Dinero de familiares", grupo: "ingreso" },
+      { nombre: "Reembolsos", grupo: "ingreso" },
+      { nombre: "Otro ingreso", grupo: "ingreso" }
     ],
     impactos: ["Positivo", "Neutro", "Negativo"],
     tarjetas: ["BBVA", "Santander", "Banamex", "Amex", "Efectivo", "N/A"]
   };
 
-  var CAT_PALETTE = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#4a3aa7","#c94a3f","#4a9a6e","#9a7a3a","#6b6ad6","#c47a2a","#3a8a9a"];
+  var GROUP_LABELS = {
+    necesidad: "🏠 Necesidades",
+    deseo: "🎉 Deseos / estilo de vida",
+    crecimiento: "📚 Crecimiento personal",
+    ahorro: "💰 Ahorro, inversión y deudas",
+    otro: "❓ Otro",
+    ingreso: "💵 Ingresos"
+  };
+  // Para el cálculo 50/30/20: crecimiento y otro se cuentan como "deseo" (gasto discrecional).
+  var BUCKET_MAP = { necesidad: "necesidad", deseo: "deseo", crecimiento: "deseo", otro: "deseo", ahorro: "ahorro", ingreso: "ingreso" };
+
+  var CAT_PALETTE = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#4a3aa7","#c94a3f","#4a9a6e",
+    "#9a7a3a","#6b6ad6","#c47a2a","#3a8a9a","#8a5a9a","#5a9ac4","#b06a3a","#4a8a5a"];
 
   var state = {
     accessToken: null,
@@ -322,10 +381,39 @@
     if (placeholder) { var o = document.createElement("option"); o.value = ""; o.textContent = placeholder; sel.appendChild(o); }
     items.forEach(function (v) { var opt = document.createElement("option"); opt.value = v; opt.textContent = v; sel.appendChild(opt); });
   }
+  function populateCategorySelect(sel) {
+    sel.innerHTML = "";
+    var groups = {};
+    CONFIG.categorias.forEach(function (c) {
+      groups[c.grupo] = groups[c.grupo] || [];
+      groups[c.grupo].push(c.nombre);
+    });
+    ["necesidad", "deseo", "crecimiento", "ahorro", "otro", "ingreso"].forEach(function (g) {
+      if (!groups[g]) return;
+      var og = document.createElement("optgroup");
+      og.label = GROUP_LABELS[g];
+      groups[g].forEach(function (nombre) {
+        var opt = document.createElement("option");
+        opt.value = nombre; opt.textContent = nombre;
+        og.appendChild(opt);
+      });
+      sel.appendChild(og);
+    });
+  }
+  function grupoOfCategoria(cat) {
+    var found = CONFIG.categorias.filter(function (c) { return c.nombre === cat; })[0];
+    return found ? found.grupo : "otro";
+  }
+  var CAT_NOMBRES = CONFIG.categorias.map(function (c) { return c.nombre; });
   function catColor(cat) {
-    var idx = CONFIG.categorias.indexOf(cat);
+    var idx = CAT_NOMBRES.indexOf(cat);
     if (idx === -1) idx = 0;
     return CAT_PALETTE[idx % CAT_PALETTE.length];
+  }
+  function tipoBadgeClass(tipo) {
+    if (tipo === "Gasto") return "gasto";
+    if (tipo === "Ahorro/Inversión") return "ahorro";
+    return "ingreso";
   }
 
   // ---------- Google Identity / Auth ----------
@@ -475,6 +563,7 @@
   // ---------- Render ----------
   function render() {
     renderStats();
+    renderBudgetBuckets();
     renderCategoryChart();
     renderPendientes();
     renderTable();
@@ -482,17 +571,55 @@
 
   function renderStats() {
     var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha); });
-    var ingresos = 0, gastos = 0;
-    movs.forEach(function (m) { if (m.tipo === "Ingreso") ingresos += m.monto; else gastos += m.monto; });
+    var ingresos = 0, gastos = 0, ahorro = 0;
+    movs.forEach(function (m) {
+      if (m.tipo === "Ingreso") ingresos += m.monto;
+      else if (m.tipo === "Ahorro/Inversión") ahorro += m.monto;
+      else gastos += m.monto;
+    });
     document.getElementById("statIngresos").textContent = fmtMoney(ingresos);
     document.getElementById("statGastos").textContent = fmtMoney(gastos);
-    var bal = ingresos - gastos;
+    document.getElementById("statAhorro").textContent = fmtMoney(ahorro);
+    var bal = ingresos - gastos - ahorro;
     var balEl = document.getElementById("statBalance");
     balEl.textContent = (bal >= 0 ? "+" : "") + fmtMoney(bal);
     balEl.className = "value " + (bal >= 0 ? "good" : "critical");
     document.getElementById("statCount").textContent = movs.length;
     document.getElementById("chartRange").textContent = "— " + currentPeriodLabel();
     document.getElementById("moveCount").textContent = "(" + currentPeriodLabel() + ")";
+  }
+
+  function renderBudgetBuckets() {
+    var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha); });
+    var ingresos = 0, necesidad = 0, deseo = 0, ahorro = 0;
+    movs.forEach(function (m) {
+      if (m.tipo === "Ingreso") { ingresos += m.monto; return; }
+      if (m.tipo === "Ahorro/Inversión") { ahorro += m.monto; return; }
+      var bucket = BUCKET_MAP[grupoOfCategoria(m.categoria)] || "deseo";
+      if (bucket === "necesidad") necesidad += m.monto;
+      else if (bucket === "ahorro") ahorro += m.monto;
+      else deseo += m.monto;
+    });
+    var base = ingresos > 0 ? ingresos : (necesidad + deseo + ahorro);
+    var el = document.getElementById("budgetBuckets");
+    el.innerHTML = "";
+    if (base <= 0) { el.innerHTML = '<div class="empty-note">Agrega movimientos para ver tu distribución 50/30/20.</div>'; return; }
+    var rows = [
+      { label: "Necesidades", amount: necesidad, target: 0.5, good: "var(--info)" },
+      { label: "Deseos", amount: deseo, target: 0.3, good: "var(--warn)" },
+      { label: "Ahorro / deudas", amount: ahorro, target: 0.2, good: "var(--good)" }
+    ];
+    rows.forEach(function (r) {
+      var pct = r.amount / base * 100;
+      var withinTarget = r.label === "Ahorro / deudas" ? (pct >= r.target * 100) : (pct <= r.target * 100 + 5);
+      var barColor = withinTarget ? r.good : "var(--critical)";
+      var row = document.createElement("div");
+      row.className = "bar-row";
+      row.innerHTML = '<div class="cat-label">' + r.label + ' <span style="color:var(--text-muted);">(meta ' + (r.target * 100) + '%)</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + Math.min(pct, 100) + '%;background:' + barColor + ';"></div></div>' +
+        '<div class="amt">' + pct.toFixed(0) + '% · ' + fmtMoney(r.amount) + '</div>';
+      el.appendChild(row);
+    });
   }
 
   function renderCategoryChart() {
@@ -560,7 +687,7 @@
       tr.innerHTML =
         '<td>' + fmtDate(m.fecha) + '</td>' +
         '<td>' + m.usuario + '</td>' +
-        '<td><span class="tipo-badge ' + (m.tipo === "Gasto" ? "gasto" : "ingreso") + '">' + m.tipo + '</span></td>' +
+        '<td><span class="tipo-badge ' + tipoBadgeClass(m.tipo) + '">' + m.tipo + '</span></td>' +
         '<td>' + m.categoria + '</td>' +
         '<td>' + m.descripcion + '</td>' +
         '<td>' + m.tarjeta + '</td>' +
@@ -651,11 +778,11 @@
   // ---------- Init ----------
   function init() {
     populateSelect(document.getElementById("mUsuario"), CONFIG.usuarios, null);
-    populateSelect(document.getElementById("mCategoria"), CONFIG.categorias, null);
+    populateCategorySelect(document.getElementById("mCategoria"));
     populateSelect(document.getElementById("mImpacto"), CONFIG.impactos, null);
     populateSelect(document.getElementById("mTarjeta"), CONFIG.tarjetas, null);
     populateSelect(document.getElementById("pUsuario"), CONFIG.usuarios, null);
-    populateSelect(document.getElementById("pCategoria"), CONFIG.categorias, null);
+    populateCategorySelect(document.getElementById("pCategoria"));
     populateSelect(document.getElementById("filterUsuario"), CONFIG.usuarios, "Todos los usuarios");
 
     document.getElementById("mFecha").value = todayISO();
