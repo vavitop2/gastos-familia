@@ -81,6 +81,12 @@
     background: var(--page); color: var(--text-primary); font-size: 15px; font-weight: 600; cursor: pointer;
   }
   .who-options button:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pay-card { text-align: left; }
+  .pay-card h2, .pay-card > p { text-align: center; }
+  .pay-card .field { margin-bottom: 12px; }
+  .pay-actions { display: flex; gap: 8px; margin-top: 6px; }
+  .pay-actions button { flex: 1; }
+  .cardbal-card .pay-btn { width: 100%; margin-top: 10px; padding: 8px; font-size: 12.5px; }
   .who-divider { font-size: 11px; color: var(--text-muted); margin: 2px 0; }
   .who-options .who-all { background: transparent; border-style: dashed; }
   .theme-toggle, .btn-secondary {
@@ -416,6 +422,21 @@
   </div>
 </div>
 
+<div class="who-overlay hidden" id="payOverlay">
+  <div class="who-card pay-card">
+    <h2 id="payModalTitle">Liquidar tarjeta</h2>
+    <p>Registra el pago que hiciste a esta tarjeta. No se cuenta como gasto nuevo — solo salda lo que ya cargaste.</p>
+    <div class="field"><label>Fecha</label><input type="date" id="payFecha"></div>
+    <div class="field"><label>Usuario</label><select id="payUsuario"></select></div>
+    <div class="field"><label>Monto pagado (MXN)</label><input type="number" id="payMonto" step="0.01" min="0"></div>
+    <div class="field"><label>Notas (opcional)</label><input type="text" id="payNotas" placeholder="Ej. pago para no generar intereses"></div>
+    <div class="pay-actions">
+      <button type="button" class="btn-secondary" id="payCancelBtn">Cancelar</button>
+      <button type="button" class="btn-primary" id="payConfirmBtn">Registrar pago</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function () {
@@ -502,7 +523,8 @@
     pendientes: [],     // {row, marca, fechaLimite(Date), tipo, usuario, categoria, concepto, monto, estado, notas}
     selectedMonth: null,
     showAll: false,
-    tokenClient: null
+    tokenClient: null,
+    payingCard: null
   };
 
   // ---------- Utilidades ----------
@@ -1089,7 +1111,8 @@
         '<div class="name">' + c + '</div>' +
         '<div class="row"><span>Cargado</span><span class="val">' + fmtMoney(cargado) + '</span></div>' +
         '<div class="row"><span>Pagado</span><span class="val">' + fmtMoney(pagado) + '</span></div>' +
-        '<div class="saldo ' + (saldo > 0.5 ? "owed" : "clear") + '">' + (saldo > 0.5 ? "Debes " + fmtMoney(saldo) : "✅ Al corriente") + '</div>';
+        '<div class="saldo ' + (saldo > 0.5 ? "owed" : "clear") + '">' + (saldo > 0.5 ? "Debes " + fmtMoney(saldo) : "✅ Al corriente") + '</div>' +
+        (saldo > 0.5 ? '<button type="button" class="btn-primary pay-btn" data-pay-card="' + c + '" data-pay-saldo="' + saldo + '">💸 Liquidar tarjeta</button>' : '');
       el.appendChild(card);
     });
     if (!any) el.innerHTML = '<div class="empty-note">Aún no hay cargos ni pagos registrados a tarjetas de crédito.</div>';
@@ -1263,6 +1286,49 @@
     });
   }
 
+  // ---------- Liquidar tarjeta (pago dedicado) ----------
+  function openPayModal(cardName, saldoSugerido) {
+    document.getElementById("payModalTitle").textContent = "Liquidar " + cardName;
+    document.getElementById("payFecha").value = todayISO();
+    document.getElementById("payMonto").value = saldoSugerido > 0 ? saldoSugerido.toFixed(2) : "";
+    document.getElementById("payNotas").value = "";
+    populateSelect(document.getElementById("payUsuario"), CONFIG.usuarios, null);
+    if (state.currentUser && state.currentUser !== "Todos") document.getElementById("payUsuario").value = state.currentUser;
+    state.payingCard = cardName;
+    document.getElementById("payOverlay").classList.remove("hidden");
+  }
+  function closePayModal() {
+    document.getElementById("payOverlay").classList.add("hidden");
+    state.payingCard = null;
+  }
+  function confirmPay() {
+    var monto = parseFloat(document.getElementById("payMonto").value);
+    if (!monto || monto <= 0) { toast("Ingresa un monto válido."); return; }
+    var fecha = document.getElementById("payFecha").value;
+    if (!fecha) { toast("Selecciona una fecha."); return; }
+    var cardName = state.payingCard;
+    if (!cardName) { toast("No se identificó la tarjeta."); return; }
+    var usuario = document.getElementById("payUsuario").value;
+    var notas = document.getElementById("payNotas").value.trim();
+    var descripcion = notas || ("Pago tarjeta " + cardName);
+
+    var btn = document.getElementById("payConfirmBtn");
+    btn.disabled = true; btn.textContent = "Guardando…";
+
+    var nowIso = new Date().toISOString().slice(0, 19);
+    var row = [nowIso, fecha, usuario, "Gasto", "Pago tarjeta de crédito", descripcion, monto, "Positivo", cardName];
+    sheetsAppend("Movimientos!A:I", row).then(function () {
+      toast("Pago registrado. Saldo actualizado.");
+      closePayModal();
+      return loadAll();
+    }).catch(function (err) {
+      console.error(err);
+      toast("No se pudo registrar el pago: " + (err && err.message ? err.message : "error desconocido"), 7000);
+    }).finally(function () {
+      btn.disabled = false; btn.textContent = "Registrar pago";
+    });
+  }
+
   function marcarCumplido(rowNum) {
     sheetsUpdate("Pendientes!H" + rowNum, ["Cumplido"]).then(function () {
       toast("Marcado como cumplido.");
@@ -1329,6 +1395,17 @@
     });
     document.getElementById("pagoEfectivoBtn").addEventListener("click", function () { setMedioPago("efectivo"); });
     document.getElementById("pagoTarjetaBtn").addEventListener("click", function () { setMedioPago("tarjeta"); });
+
+    document.getElementById("cardBalGrid").addEventListener("click", function (e) {
+      var btn = e.target.closest("button[data-pay-card]");
+      if (!btn) return;
+      openPayModal(btn.getAttribute("data-pay-card"), parseFloat(btn.getAttribute("data-pay-saldo")) || 0);
+    });
+    document.getElementById("payCancelBtn").addEventListener("click", closePayModal);
+    document.getElementById("payConfirmBtn").addEventListener("click", confirmPay);
+    document.getElementById("payOverlay").addEventListener("click", function (e) {
+      if (e.target.id === "payOverlay") closePayModal();
+    });
 
     document.getElementById("monthPicker").addEventListener("change", function (e) {
       state.selectedMonth = e.target.value; state.showAll = false; render();
