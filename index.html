@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gastos Familia — Tablero en vivo</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --good:           #1a7d3a;
+    --critical:       #c94a3f;
+    --warn:           #b8862f;
+    --info:           #2a78d6;
+    --accent:         #2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --good:           #3fae64;
+      --critical:       #e2776c;
+      --warn:           #d6a850;
+      --info:           #6aa3e8;
+      --accent:         #6aa3e8;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --good:           #3fae64;
+    --critical:       #e2776c;
+    --warn:           #d6a850;
+    --info:           #6aa3e8;
+    --accent:         #6aa3e8;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page); color: var(--text-primary); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 2px; }
+  .subtitle { color: var(--text-secondary); font-size: 13px; margin: 0; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .theme-toggle, .btn-secondary {
+    border: 1px solid var(--border); background: var(--surface-1);
+    color: var(--text-secondary); border-radius: 8px; padding: 8px 12px;
+    font-size: 12.5px; cursor: pointer;
+  }
+  .btn-secondary:hover, .theme-toggle:hover { background: var(--page); }
+  .btn-primary {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+  .panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; }
+  .panel h2 { font-size: 15px; font-weight: 700; margin: 0 0 14px; }
+  .panel h2 .count { font-weight: 400; color: var(--text-muted); font-size: 12px; }
+
+  .login-card { text-align: center; padding: 40px 20px; }
+  .login-card p { color: var(--text-secondary); font-size: 14px; max-width: 420px; margin: 8px auto 20px; line-height: 1.5; }
+
+  .month-row { display:flex; align-items:center; gap:10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .month-row select, .month-row input[type="month"] {
+    font-family: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--surface-1); color: var(--text-primary);
+  }
+  .month-row .month-label { font-size: 13px; color: var(--text-secondary); }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+  @media (max-width: 720px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+  .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .stat-tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .stat-tile .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-tile .value.good { color: var(--good); }
+  .stat-tile .value.critical { color: var(--critical); }
+
+  form.entry-form { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-items: end; }
+  @media (max-width: 900px) { form.entry-form { grid-template-columns: 1fr 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label { font-size: 11px; color: var(--text-secondary); }
+  .field input, .field select, .field textarea {
+    font-family: inherit; font-size: 13.5px; padding: 8px 9px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--page); color: var(--text-primary);
+  }
+  .form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
+
+  .chart-block { margin-top: 4px; }
+  .bar-row { display: grid; grid-template-columns: 160px 1fr 84px; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .bar-row .cat-label { font-size: 12.5px; color: var(--text-secondary); }
+  .bar-track { background: var(--grid); border-radius: 4px; height: 14px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+  .bar-row .amt { font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; }
+  .empty-note { color: var(--text-muted); font-size: 13px; padding: 10px 0; }
+
+  .filters-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filters-row input, .filters-row select {
+    font-family: inherit; font-size: 12.5px; padding: 7px 9px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--page); color: var(--text-primary);
+  }
+  .filters-row input[type="text"] { flex: 1; min-width: 160px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em;
+    color: var(--text-muted); font-weight: 600; padding: 8px 8px; border-bottom: 1px solid var(--baseline);
+  }
+  tbody td { padding: 9px 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+  tbody tr:hover { background: var(--page); }
+  td.amt, th.amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .tipo-badge { font-size: 11px; padding: 2px 7px; border-radius: 999px; font-weight: 600; }
+  .tipo-badge.gasto { background: rgba(201,74,63,0.14); color: var(--critical); }
+  .tipo-badge.ingreso { background: rgba(26,125,58,0.14); color: var(--good); }
+
+  .pend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .pend-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--page); }
+  .pend-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+  .pend-card .concepto { font-size: 14px; font-weight: 600; }
+  .pend-card .meta { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+  .pend-card .monto { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; margin-bottom: 6px; }
+  .semaforo { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .semaforo.en-tiempo { background: rgba(42,120,214,0.14); color: var(--info); }
+  .semaforo.proximo { background: rgba(184,134,47,0.16); color: var(--warn); }
+  .semaforo.vencido { background: rgba(201,74,63,0.16); color: var(--critical); }
+  .semaforo.cumplido { background: rgba(26,125,58,0.14); color: var(--good); }
+  .pend-warning {
+    font-size: 12px; color: var(--critical); background: rgba(201,74,63,0.10);
+    border-radius: 8px; padding: 8px 10px; margin-top: 8px; line-height: 1.4;
+  }
+  .pend-card .actions { margin-top: 10px; }
+  .pend-card .actions button {
+    font-size: 12px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    border-radius: 8px; padding: 5px 10px; cursor: pointer;
+  }
+  .pend-card .actions button:hover { background: var(--page); }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--text-primary); color: var(--surface-1); padding: 9px 16px; border-radius: 8px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 50; max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+  .spinner-note { font-size: 12.5px; color: var(--text-muted); padding: 10px 0; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <div class="wrap">
+
+    <div class="topbar">
+      <div>
+        <h1>Gastos Familia</h1>
+        <p class="subtitle">Tablero en vivo conectado a tu Google Sheet.</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="theme-toggle" id="themeToggle">🌓 Modo oscuro</button>
+        <button class="btn-secondary hidden" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </div>
+
+    <div class="panel login-card" id="loginCard">
+      <h2 style="text-align:center;">Inicia sesión con tu cuenta de Google</h2>
+      <p>Solo las cuentas autorizadas como usuarios de prueba pueden entrar. El acceso es de solo esta sesión — no se guarda nada en el navegador.</p>
+      <button class="btn-primary" id="loginBtn" disabled>Cargando…</button>
+    </div>
+
+    <div id="appContent" class="hidden">
+
+      <div class="month-row">
+        <span class="month-label">Mes:</span>
+        <input type="month" id="monthPicker">
+        <button class="btn-secondary" id="allTimeBtn">Ver todo el histórico</button>
+        <button class="btn-secondary" id="refreshBtn" style="margin-left:auto;">↻ Actualizar</button>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-tile"><div class="label">Ingresos del periodo</div><div class="value good" id="statIngresos">$0.00</div></div>
+        <div class="stat-tile"><div class="label">Gastos del periodo</div><div class="value critical" id="statGastos">$0.00</div></div>
+        <div class="stat-tile"><div class="label">Balance</div><div class="value" id="statBalance">$0.00</div></div>
+        <div class="stat-tile"><div class="label">Movimientos</div><div class="value" id="statCount">0</div></div>
+      </div>
+
+      <div class="panel">
+        <h2>Agregar movimiento</h2>
+        <form class="entry-form" id="movForm">
+          <div class="field"><label>Fecha</label><input type="date" id="mFecha" required></div>
+          <div class="field"><label>Usuario</label><select id="mUsuario"></select></div>
+          <div class="field"><label>Tipo</label><select id="mTipo"><option value="Gasto">Gasto</option><option value="Ingreso">Ingreso</option></select></div>
+          <div class="field"><label>Categoría</label><select id="mCategoria"></select></div>
+          <div class="field full"><label>Descripción</label><input type="text" id="mDescripcion" required></div>
+          <div class="field"><label>Monto (MXN)</label><input type="number" id="mMonto" step="0.01" min="0" required></div>
+          <div class="field"><label>Impacto</label><select id="mImpacto"></select></div>
+          <div class="field"><label>Tarjeta / cuenta</label><select id="mTarjeta"></select></div>
+          <div class="form-actions"><button type="submit" class="btn-primary" id="movSubmitBtn">Agregar movimiento</button></div>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Gastos por categoría <span class="count" id="chartRange"></span></h2>
+        <div class="chart-block" id="categoryChart"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Pendientes <span class="count" id="pendCount"></span></h2>
+        <form class="entry-form" id="pendForm" style="margin-bottom:18px;">
+          <div class="field"><label>Fecha límite</label><input type="date" id="pFecha" required></div>
+          <div class="field"><label>Tipo</label><select id="pTipo"><option value="Por cobrar">Por cobrar (espero que me paguen)</option><option value="Por pagar">Por pagar (yo debo pagar)</option></select></div>
+          <div class="field"><label>Usuario</label><select id="pUsuario"></select></div>
+          <div class="field"><label>Categoría</label><select id="pCategoria"></select></div>
+          <div class="field full"><label>Concepto</label><input type="text" id="pConcepto" required></div>
+          <div class="field"><label>Monto (MXN)</label><input type="number" id="pMonto" step="0.01" min="0" required></div>
+          <div class="field full"><label>Notas (opcional)</label><input type="text" id="pNotas"></div>
+          <div class="form-actions"><button type="submit" class="btn-primary" id="pendSubmitBtn">Agregar pendiente</button></div>
+        </form>
+        <div class="pend-grid" id="pendGrid"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Movimientos <span class="count" id="moveCount"></span></h2>
+        <div class="filters-row">
+          <input type="text" id="searchBox" placeholder="Buscar descripción...">
+          <select id="filterTipo"><option value="">Todos los tipos</option><option value="Gasto">Gasto</option><option value="Ingreso">Ingreso</option></select>
+          <select id="filterUsuario"><option value="">Todos los usuarios</option></select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Tarjeta</th><th class="amt">Monto</th></tr></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-note" id="emptyNote" style="display:none;">Sin movimientos para este periodo.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---- Configuración: ya conectado a tu proyecto de Google Cloud y tu Sheet ----
+  var CLIENT_ID = "696901922077-a3rnps1ohbbti418f8stnp3t4q3i10om.apps.googleusercontent.com";
+  var SHEET_ID = "1A0G4oT3sS5OAJYczm3MgDoYJOLLvuhjXd0cDJR6hK2w";
+  var SCOPES = "https://www.googleapis.com/auth/spreadsheets";
+
+  var CONFIG = {
+    usuarios: ["Pablo", "Mamá", "Otro/a"],
+    categorias: [
+      "Casa / Renta", "Servicios (luz, agua, gas, internet)", "Despensa / Súper",
+      "Salidas a comer", "Salidas recreativas", "Tiendita / antojos", "Transporte",
+      "Ropa y accesorios", "Salud", "Cursos / Educación", "Suscripciones (Netflix, etc.)",
+      "Pago tarjeta de crédito", "Otro gasto", "Sueldo / Nómina", "Ventas",
+      "Servicios prestados", "Dinero de familiares", "Otro ingreso"
+    ],
+    impactos: ["Positivo", "Neutro", "Negativo"],
+    tarjetas: ["BBVA", "Santander", "Banamex", "Amex", "Efectivo", "N/A"]
+  };
+
+  var CAT_PALETTE = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#4a3aa7","#c94a3f","#4a9a6e","#9a7a3a","#6b6ad6","#c47a2a","#3a8a9a"];
+
+  var state = {
+    accessToken: null,
+    movimientos: [],   // {row, marca, fecha(Date), usuario, tipo, categoria, descripcion, monto, impacto, tarjeta}
+    pendientes: [],     // {row, marca, fechaLimite(Date), tipo, usuario, categoria, concepto, monto, estado, notas}
+    selectedMonth: null,
+    showAll: false,
+    tokenClient: null
+  };
+
+  // ---------- Utilidades ----------
+  function todayISO() { return new Date().toISOString().slice(0, 10); }
+  function currentMonthValue() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
+  function fmtMoney(n) { return "$" + (Math.round((n || 0) * 100) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtDate(d) {
+    if (!d) return "";
+    var months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+    return d.getUTCDate() + " " + months[d.getUTCMonth()] + " " + d.getUTCFullYear();
+  }
+  function serialToDate(serial) {
+    if (serial === undefined || serial === null || serial === "") return null;
+    var ms = Date.UTC(1899, 11, 30) + Math.round(serial * 86400000);
+    return new Date(ms);
+  }
+  function isoFromDate(d) { return d.getUTCFullYear() + "-" + String(d.getUTCMonth()+1).padStart(2,"0") + "-" + String(d.getUTCDate()).padStart(2,"0"); }
+  function toast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    setTimeout(function () { t.classList.remove("show"); }, 2400);
+  }
+  function populateSelect(sel, items, placeholder) {
+    sel.innerHTML = "";
+    if (placeholder) { var o = document.createElement("option"); o.value = ""; o.textContent = placeholder; sel.appendChild(o); }
+    items.forEach(function (v) { var opt = document.createElement("option"); opt.value = v; opt.textContent = v; sel.appendChild(opt); });
+  }
+  function catColor(cat) {
+    var idx = CONFIG.categorias.indexOf(cat);
+    if (idx === -1) idx = 0;
+    return CAT_PALETTE[idx % CAT_PALETTE.length];
+  }
+
+  // ---------- Google Identity / Auth ----------
+  function initGoogle() {
+    if (!window.google || !google.accounts) { setTimeout(initGoogle, 200); return; }
+    state.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: function (resp) {
+        if (resp.error) { toast("No se pudo iniciar sesión: " + resp.error); return; }
+        state.accessToken = resp.access_token;
+        onLoggedIn();
+      }
+    });
+    var btn = document.getElementById("loginBtn");
+    btn.disabled = false;
+    btn.textContent = "Iniciar sesión con Google";
+  }
+
+  function onLoggedIn() {
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("appContent").classList.remove("hidden");
+    document.getElementById("logoutBtn").classList.remove("hidden");
+    loadAll();
+  }
+
+  function logout() {
+    if (state.accessToken && google.accounts && google.accounts.oauth2) {
+      google.accounts.oauth2.revoke(state.accessToken, function () {});
+    }
+    state.accessToken = null;
+    document.getElementById("loginCard").classList.remove("hidden");
+    document.getElementById("appContent").classList.add("hidden");
+    document.getElementById("logoutBtn").classList.add("hidden");
+  }
+
+  // ---------- Sheets API ----------
+  function sheetsGet(range) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range)
+      + "?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER";
+    return fetch(url, { headers: { Authorization: "Bearer " + state.accessToken } }).then(function (r) {
+      if (!r.ok) { throw new Error("HTTP " + r.status); }
+      return r.json();
+    });
+  }
+  function sheetsAppend(range, values) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range)
+      + ":append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS";
+    return fetch(url, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + state.accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [values] })
+    }).then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); });
+  }
+  function sheetsUpdate(range, values) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range)
+      + "?valueInputOption=USER_ENTERED";
+    return fetch(url, {
+      method: "PUT",
+      headers: { Authorization: "Bearer " + state.accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [values] })
+    }).then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); });
+  }
+
+  function loadAll() {
+    Promise.all([
+      sheetsGet("Movimientos!A2:I601"),
+      sheetsGet("Pendientes!A2:J201")
+    ]).then(function (results) {
+      var movRows = results[0].values || [];
+      state.movimientos = movRows.map(function (r, i) {
+        if (!r || r[1] === undefined || r[1] === "") return null;
+        return {
+          row: i + 2, marca: r[0], fecha: serialToDate(r[1]), usuario: r[2] || "",
+          tipo: r[3] || "", categoria: r[4] || "", descripcion: r[5] || "",
+          monto: Number(r[6]) || 0, impacto: r[7] || "", tarjeta: r[8] || ""
+        };
+      }).filter(Boolean);
+
+      var pendRows = results[1].values || [];
+      state.pendientes = pendRows.map(function (r, i) {
+        if (!r || r[1] === undefined || r[1] === "") return null;
+        return {
+          row: i + 2, marca: r[0], fechaLimite: serialToDate(r[1]), tipo: r[2] || "",
+          usuario: r[3] || "", categoria: r[4] || "", concepto: r[5] || "",
+          monto: Number(r[6]) || 0, estado: r[7] || "Pendiente", notas: r[8] || ""
+        };
+      }).filter(Boolean);
+
+      render();
+      toast("Datos actualizados.");
+    }).catch(function (err) {
+      console.error(err);
+      toast("No se pudieron cargar los datos. Verifica el acceso a la hoja.");
+    });
+  }
+
+  // ---------- Periodo ----------
+  function currentPeriodLabel() {
+    if (state.showAll) return "todo el histórico";
+    var v = state.selectedMonth || currentMonthValue();
+    var parts = v.split("-");
+    var months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    return months[parseInt(parts[1], 10) - 1] + " " + parts[0];
+  }
+  function inPeriod(fecha) {
+    if (state.showAll) return true;
+    if (!fecha) return false;
+    var v = state.selectedMonth || currentMonthValue();
+    return isoFromDate(fecha).slice(0, 7) === v;
+  }
+
+  // ---------- Semáforo / advertencia de pendientes ----------
+  function semaforoInfo(p) {
+    if (p.estado === "Cumplido") return { key: "cumplido", label: "✅ Cumplido" };
+    var today = new Date(); today.setUTCHours(0,0,0,0);
+    var todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    var due = Date.UTC(p.fechaLimite.getUTCFullYear(), p.fechaLimite.getUTCMonth(), p.fechaLimite.getUTCDate());
+    var diffDays = Math.round((due - todayUTC) / 86400000);
+    if (diffDays < 0) return { key: "vencido", label: "⚠ Vencido" };
+    if (diffDays <= 5) return { key: "proximo", label: "🟡 Próximo" };
+    return { key: "en-tiempo", label: "🔵 En tiempo" };
+  }
+
+  function coverageWarning(pago) {
+    // Solo aplica a "Por pagar" no cumplidos
+    var dueTime = Date.UTC(pago.fechaLimite.getUTCFullYear(), pago.fechaLimite.getUTCMonth(), pago.fechaLimite.getUTCDate());
+    var cobrosDisponibles = state.pendientes.filter(function (p) {
+      return p.tipo === "Por cobrar" && p.estado !== "Cumplido" &&
+        Date.UTC(p.fechaLimite.getUTCFullYear(), p.fechaLimite.getUTCMonth(), p.fechaLimite.getUTCDate()) <= dueTime;
+    }).reduce(function (s, p) { return s + p.monto; }, 0);
+
+    // Balance de ingresos/gastos confirmados del mes en curso hasta hoy
+    var mesActual = currentMonthValue();
+    var balanceMes = state.movimientos.filter(function (m) {
+      return m.fecha && isoFromDate(m.fecha).slice(0,7) === mesActual;
+    }).reduce(function (s, m) { return s + (m.tipo === "Ingreso" ? m.monto : -m.monto); }, 0);
+
+    var disponible = cobrosDisponibles + Math.max(balanceMes, 0);
+    var falta = pago.monto - disponible;
+    if (falta > 0) {
+      return "Con lo confirmado hasta esa fecha (cobros pendientes + saldo del mes), te faltarían aprox. " + fmtMoney(falta) + " para cubrir este pago.";
+    }
+    return null;
+  }
+
+  // ---------- Render ----------
+  function render() {
+    renderStats();
+    renderCategoryChart();
+    renderPendientes();
+    renderTable();
+  }
+
+  function renderStats() {
+    var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha); });
+    var ingresos = 0, gastos = 0;
+    movs.forEach(function (m) { if (m.tipo === "Ingreso") ingresos += m.monto; else gastos += m.monto; });
+    document.getElementById("statIngresos").textContent = fmtMoney(ingresos);
+    document.getElementById("statGastos").textContent = fmtMoney(gastos);
+    var bal = ingresos - gastos;
+    var balEl = document.getElementById("statBalance");
+    balEl.textContent = (bal >= 0 ? "+" : "") + fmtMoney(bal);
+    balEl.className = "value " + (bal >= 0 ? "good" : "critical");
+    document.getElementById("statCount").textContent = movs.length;
+    document.getElementById("chartRange").textContent = "— " + currentPeriodLabel();
+    document.getElementById("moveCount").textContent = "(" + currentPeriodLabel() + ")";
+  }
+
+  function renderCategoryChart() {
+    var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha) && m.tipo === "Gasto"; });
+    var byCat = {};
+    movs.forEach(function (m) { byCat[m.categoria] = (byCat[m.categoria] || 0) + m.monto; });
+    var entries = Object.keys(byCat).map(function (k) { return [k, byCat[k]]; }).sort(function (a,b) { return b[1]-a[1]; });
+    var maxVal = Math.max.apply(null, entries.map(function (e) { return e[1]; }).concat([0.01]));
+    var el = document.getElementById("categoryChart");
+    el.innerHTML = "";
+    if (!entries.length) { el.innerHTML = '<div class="empty-note">Sin gastos registrados en este periodo.</div>'; return; }
+    entries.forEach(function (e) {
+      var row = document.createElement("div");
+      row.className = "bar-row";
+      row.innerHTML = '<div class="cat-label">' + e[0] + '</div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + (e[1]/maxVal*100) + '%;background:' + catColor(e[0]) + ';"></div></div>' +
+        '<div class="amt">' + fmtMoney(e[1]) + '</div>';
+      el.appendChild(row);
+    });
+  }
+
+  function renderPendientes() {
+    var pend = state.pendientes.filter(function (p) { return p.estado !== "Cumplido"; })
+      .sort(function (a, b) { return a.fechaLimite - b.fechaLimite; });
+    document.getElementById("pendCount").textContent = "(" + pend.length + " activos)";
+    var grid = document.getElementById("pendGrid");
+    grid.innerHTML = "";
+    if (!pend.length) { grid.innerHTML = '<div class="empty-note">No hay pendientes activos.</div>'; return; }
+    pend.forEach(function (p) {
+      var sem = semaforoInfo(p);
+      var card = document.createElement("div");
+      card.className = "pend-card";
+      var warn = p.tipo === "Por pagar" ? coverageWarning(p) : null;
+      card.innerHTML =
+        '<div class="top-row"><div class="concepto">' + p.concepto + '</div><span class="semaforo ' + sem.key + '">' + sem.label + '</span></div>' +
+        '<div class="meta">' + p.tipo + ' · ' + p.usuario + ' · ' + p.categoria + ' · vence ' + fmtDate(p.fechaLimite) + '</div>' +
+        '<div class="monto" style="color:' + (p.tipo === "Por cobrar" ? "var(--good)" : "var(--critical)") + ';">' + fmtMoney(p.monto) + '</div>' +
+        (p.notas ? '<div class="meta">' + p.notas + '</div>' : '') +
+        (warn ? '<div class="pend-warning">⚠ ' + warn + '</div>' : '') +
+        '<div class="actions"><button data-cumplir="' + p.row + '">Marcar cumplido</button></div>';
+      grid.appendChild(card);
+    });
+  }
+
+  function getFilteredMovs() {
+    var search = document.getElementById("searchBox").value.trim().toLowerCase();
+    var tipo = document.getElementById("filterTipo").value;
+    var usuario = document.getElementById("filterUsuario").value;
+    return state.movimientos.filter(function (m) {
+      if (!inPeriod(m.fecha)) return false;
+      if (search && m.descripcion.toLowerCase().indexOf(search) === -1) return false;
+      if (tipo && m.tipo !== tipo) return false;
+      if (usuario && m.usuario !== usuario) return false;
+      return true;
+    }).sort(function (a, b) { return b.fecha - a.fecha; });
+  }
+
+  function renderTable() {
+    var filtered = getFilteredMovs();
+    var tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+    document.getElementById("emptyNote").style.display = filtered.length === 0 ? "block" : "none";
+    filtered.forEach(function (m) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td>' + fmtDate(m.fecha) + '</td>' +
+        '<td>' + m.usuario + '</td>' +
+        '<td><span class="tipo-badge ' + (m.tipo === "Gasto" ? "gasto" : "ingreso") + '">' + m.tipo + '</span></td>' +
+        '<td>' + m.categoria + '</td>' +
+        '<td>' + m.descripcion + '</td>' +
+        '<td>' + m.tarjeta + '</td>' +
+        '<td class="amt">' + fmtMoney(m.monto) + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---------- Formularios ----------
+  function addMovimiento(e) {
+    e.preventDefault();
+    var fecha = document.getElementById("mFecha").value;
+    if (!fecha) { toast("Selecciona una fecha."); return; }
+    var monto = parseFloat(document.getElementById("mMonto").value);
+    if (!monto || monto <= 0) { toast("Ingresa un monto válido."); return; }
+    var descripcion = document.getElementById("mDescripcion").value.trim();
+    if (!descripcion) { toast("Agrega una descripción."); return; }
+
+    var btn = document.getElementById("movSubmitBtn");
+    btn.disabled = true; btn.textContent = "Guardando…";
+
+    var nowIso = new Date().toISOString().slice(0, 19);
+    var row = [
+      nowIso, fecha,
+      document.getElementById("mUsuario").value,
+      document.getElementById("mTipo").value,
+      document.getElementById("mCategoria").value,
+      descripcion, monto,
+      document.getElementById("mImpacto").value,
+      document.getElementById("mTarjeta").value
+    ];
+    sheetsAppend("Movimientos!A:I", row).then(function () {
+      toast("Movimiento agregado.");
+      document.getElementById("mDescripcion").value = "";
+      document.getElementById("mMonto").value = "";
+      document.getElementById("mFecha").value = todayISO();
+      return loadAll();
+    }).catch(function (err) {
+      console.error(err); toast("No se pudo guardar. Intenta de nuevo.");
+    }).finally(function () {
+      btn.disabled = false; btn.textContent = "Agregar movimiento";
+    });
+  }
+
+  function addPendiente(e) {
+    e.preventDefault();
+    var fecha = document.getElementById("pFecha").value;
+    if (!fecha) { toast("Selecciona una fecha límite."); return; }
+    var monto = parseFloat(document.getElementById("pMonto").value);
+    if (!monto || monto <= 0) { toast("Ingresa un monto válido."); return; }
+    var concepto = document.getElementById("pConcepto").value.trim();
+    if (!concepto) { toast("Agrega un concepto."); return; }
+
+    var btn = document.getElementById("pendSubmitBtn");
+    btn.disabled = true; btn.textContent = "Guardando…";
+
+    var nowIso = new Date().toISOString().slice(0, 19);
+    var row = [
+      nowIso, fecha,
+      document.getElementById("pTipo").value,
+      document.getElementById("pUsuario").value,
+      document.getElementById("pCategoria").value,
+      concepto, monto, "Pendiente",
+      document.getElementById("pNotas").value.trim()
+    ];
+    sheetsAppend("Pendientes!A:I", row).then(function () {
+      toast("Pendiente agregado.");
+      document.getElementById("pConcepto").value = "";
+      document.getElementById("pMonto").value = "";
+      document.getElementById("pNotas").value = "";
+      return loadAll();
+    }).catch(function (err) {
+      console.error(err); toast("No se pudo guardar. Intenta de nuevo.");
+    }).finally(function () {
+      btn.disabled = false; btn.textContent = "Agregar pendiente";
+    });
+  }
+
+  function marcarCumplido(rowNum) {
+    sheetsUpdate("Pendientes!H" + rowNum, ["Cumplido"]).then(function () {
+      toast("Marcado como cumplido.");
+      return loadAll();
+    }).catch(function (err) {
+      console.error(err); toast("No se pudo actualizar.");
+    });
+  }
+
+  // ---------- Init ----------
+  function init() {
+    populateSelect(document.getElementById("mUsuario"), CONFIG.usuarios, null);
+    populateSelect(document.getElementById("mCategoria"), CONFIG.categorias, null);
+    populateSelect(document.getElementById("mImpacto"), CONFIG.impactos, null);
+    populateSelect(document.getElementById("mTarjeta"), CONFIG.tarjetas, null);
+    populateSelect(document.getElementById("pUsuario"), CONFIG.usuarios, null);
+    populateSelect(document.getElementById("pCategoria"), CONFIG.categorias, null);
+    populateSelect(document.getElementById("filterUsuario"), CONFIG.usuarios, "Todos los usuarios");
+
+    document.getElementById("mFecha").value = todayISO();
+    document.getElementById("pFecha").value = todayISO();
+    document.getElementById("monthPicker").value = currentMonthValue();
+    state.selectedMonth = currentMonthValue();
+
+    document.getElementById("movForm").addEventListener("submit", addMovimiento);
+    document.getElementById("pendForm").addEventListener("submit", addPendiente);
+    document.getElementById("loginBtn").addEventListener("click", function () {
+      state.tokenClient.requestAccessToken({ prompt: "" });
+    });
+    document.getElementById("logoutBtn").addEventListener("click", logout);
+    document.getElementById("refreshBtn").addEventListener("click", loadAll);
+
+    document.getElementById("monthPicker").addEventListener("change", function (e) {
+      state.selectedMonth = e.target.value; state.showAll = false; render();
+    });
+    document.getElementById("allTimeBtn").addEventListener("click", function () {
+      state.showAll = !state.showAll;
+      this.textContent = state.showAll ? "Ver solo el mes seleccionado" : "Ver todo el histórico";
+      render();
+    });
+    ["searchBox", "filterTipo", "filterUsuario"].forEach(function (id) {
+      document.getElementById(id).addEventListener("input", renderTable);
+      document.getElementById(id).addEventListener("change", renderTable);
+    });
+    document.getElementById("pendGrid").addEventListener("click", function (e) {
+      var btn = e.target.closest("button[data-cumplir]");
+      if (!btn) return;
+      marcarCumplido(parseInt(btn.getAttribute("data-cumplir"), 10));
+    });
+
+    document.getElementById("themeToggle").addEventListener("click", function () {
+      var root = document.documentElement;
+      var current = root.getAttribute("data-theme");
+      root.setAttribute("data-theme", current === "dark" ? "light" : "dark");
+    });
+
+    initGoogle();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>
