@@ -165,9 +165,9 @@
   .health-score-num { font-size: 36px; font-weight: 800; line-height: 1; }
   .health-badge { font-size: 14px; font-weight: 700; padding: 9px 16px; border-radius: 12px; white-space: nowrap; }
   .health-badge.sano { background: rgba(26,125,58,0.14); color: var(--good); }
-  .health-badge.leve { background: rgba(184,134,47,0.16); color: var(--warn); }
-  .health-badge.delicado { background: rgba(201,74,63,0.12); color: var(--critical); }
-  .health-badge.critico { background: rgba(201,74,63,0.20); color: var(--critical); }
+  .health-badge.leve { background: rgba(184,134,47,0.14); color: var(--warn); }
+  .health-badge.delicado { background: rgba(184,134,47,0.20); color: var(--warn); }
+  .health-badge.critico { background: rgba(201,74,63,0.14); color: var(--critical); }
   .health-diagnosis { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 4px; }
   .rx-list { margin: 14px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
   .rx-item { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; line-height: 1.5; }
@@ -182,7 +182,7 @@
   .trend-chart { display: flex; align-items: flex-end; gap: 16px; height: 150px; padding: 10px 4px 0; overflow-x: auto; }
   .trend-month { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 48px; flex: none; }
   .trend-bars { display: flex; align-items: flex-end; gap: 3px; height: 120px; }
-  .trend-bar { width: 11px; border-radius: 3px 3px 0 0; min-height: 2px; }
+  .trend-bar { width: 11px; border-radius: 3px 3px 0 0; min-height: 2px; opacity: 0.82; }
   .trend-month-label { font-size: 10.5px; color: var(--text-muted); }
   .trend-legend { display: flex; gap: 16px; margin-top: 12px; font-size: 11.5px; color: var(--text-secondary); flex-wrap: wrap; }
   .trend-legend span { display: inline-flex; align-items: center; gap: 5px; }
@@ -720,7 +720,7 @@
       col.innerHTML =
         '<div class="trend-bars">' +
           '<div class="trend-bar" title="Ingresos ' + fmtMoney(t.ingresos) + '" style="height:' + Math.max(t.ingresos / maxVal * 120, 2) + 'px;background:var(--good);"></div>' +
-          '<div class="trend-bar" title="Gastos ' + fmtMoney(t.gastos) + '" style="height:' + Math.max(t.gastos / maxVal * 120, 2) + 'px;background:var(--critical);"></div>' +
+          '<div class="trend-bar" title="Gastos ' + fmtMoney(t.gastos) + '" style="height:' + Math.max(t.gastos / maxVal * 120, 2) + 'px;background:var(--warn);"></div>' +
           '<div class="trend-bar" title="Ahorro ' + fmtMoney(t.ahorro) + '" style="height:' + Math.max(t.ahorro / maxVal * 120, 2) + 'px;background:var(--info);"></div>' +
         '</div>' +
         '<div class="trend-month-label">' + mo.label + '</div>';
@@ -728,7 +728,7 @@
     });
     document.getElementById("trendLegend").innerHTML =
       '<span><span class="dot" style="background:var(--good);"></span>Ingresos</span>' +
-      '<span><span class="dot" style="background:var(--critical);"></span>Gastos</span>' +
+      '<span><span class="dot" style="background:var(--warn);"></span>Gastos</span>' +
       '<span><span class="dot" style="background:var(--info);"></span>Ahorro</span>';
   }
 
