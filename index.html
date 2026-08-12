@@ -130,6 +130,12 @@
     border-radius: 8px; background: var(--page); color: var(--text-primary);
   }
   .form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
+  .pago-toggle { display: flex; gap: 8px; margin-bottom: 8px; }
+  .pago-opt {
+    flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--page); color: var(--text-secondary); font-size: 13.5px; font-weight: 600; cursor: pointer;
+  }
+  .pago-opt.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .add-tarjeta { display: flex; gap: 6px; }
   .add-tarjeta select { flex: 1; }
   .add-tarjeta button {
@@ -224,6 +230,15 @@
   .projection-box { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; }
   .projection-num { font-size: 26px; font-weight: 800; white-space: nowrap; }
 
+  .cardbal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .cardbal-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--page); }
+  .cardbal-card .name { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .cardbal-card .row { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 4px; }
+  .cardbal-card .row .val { font-variant-numeric: tabular-nums; color: var(--text-primary); font-weight: 600; }
+  .cardbal-card .saldo { font-size: 18px; font-weight: 800; margin-top: 8px; }
+  .cardbal-card .saldo.owed { color: var(--critical); }
+  .cardbal-card .saldo.clear { color: var(--good); }
+
   .contrib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
   .contrib-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--page); }
   .contrib-card.is-you { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
@@ -292,6 +307,14 @@
       </div>
 
       <div class="panel">
+        <h2>💳 Saldo de tarjetas de crédito <span class="count">— cuánto debes hoy, histórico</span></h2>
+        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
+          Lo que has cargado a cada tarjeta menos lo que ya le has pagado — así sabes exactamente cuánto liquidar en tu próximo corte, sin adivinar.
+        </p>
+        <div class="cardbal-grid" id="cardBalGrid"></div>
+      </div>
+
+      <div class="panel">
         <h2>Tendencia — ingresos, gastos y ahorro <span class="count">últimos 6 meses</span></h2>
         <div class="trend-chart" id="trendChart"></div>
         <div class="trend-legend" id="trendLegend"></div>
@@ -328,9 +351,13 @@
           <div class="field full"><label>Descripción</label><input type="text" id="mDescripcion" required></div>
           <div class="field"><label>Monto (MXN)</label><input type="number" id="mMonto" step="0.01" min="0" required></div>
           <div class="field"><label>Impacto</label><select id="mImpacto"></select></div>
-          <div class="field">
-            <label>Tarjeta / cuenta</label>
-            <div class="add-tarjeta">
+          <div class="field full">
+            <label>Medio de pago</label>
+            <div class="pago-toggle">
+              <button type="button" class="pago-opt active" data-pago="efectivo" id="pagoEfectivoBtn">💵 Efectivo</button>
+              <button type="button" class="pago-opt" data-pago="tarjeta" id="pagoTarjetaBtn">💳 Tarjeta / cuenta</button>
+            </div>
+            <div class="add-tarjeta hidden" id="tarjetaPicker">
               <select id="mTarjeta"></select>
               <button type="button" id="addTarjetaBtn" title="Agregar tarjeta o cuenta">+</button>
             </div>
@@ -448,7 +475,7 @@
       { nombre: "Otro ingreso", grupo: "ingreso" }
     ],
     impactos: ["Positivo", "Neutro", "Negativo"],
-    tarjetas: ["BBVA", "Santander", "Banamex", "Amex", "Mercado Pago", "Nu", "Banco Azteca", "HSBC", "Scotiabank", "Klar", "Efectivo", "N/A"]
+    tarjetas: ["BBVA", "Santander", "Banamex", "Amex", "Mercado Pago", "Nu", "Banco Azteca", "HSBC", "Scotiabank", "Klar"]
   };
 
   var GROUP_LABELS = {
@@ -480,6 +507,15 @@
 
   // ---------- Utilidades ----------
   function todayISO() { return new Date().toISOString().slice(0, 10); }
+  function getMedioPago() {
+    var isTarjeta = document.getElementById("pagoTarjetaBtn").classList.contains("active");
+    return isTarjeta ? document.getElementById("mTarjeta").value : "Efectivo";
+  }
+  function setMedioPago(mode) {
+    document.getElementById("pagoEfectivoBtn").classList.toggle("active", mode === "efectivo");
+    document.getElementById("pagoTarjetaBtn").classList.toggle("active", mode === "tarjeta");
+    document.getElementById("tarjetaPicker").classList.toggle("hidden", mode !== "tarjeta");
+  }
   function currentMonthValue() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
   function fmtMoney(n) { return "$" + (Math.round((n || 0) * 100) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function fmtDate(d) {
@@ -765,6 +801,7 @@
   function render() {
     renderStats();
     renderHealth();
+    renderCardBalances();
     renderTrendChart();
     renderProjection();
     renderBudgetBuckets();
@@ -1025,6 +1062,39 @@
     });
   }
 
+  // Saldo por tarjeta: todo lo cargado (Gastos reales, sin pagos de deuda) menos todo lo pagado
+  // a esa misma tarjeta (categoría "deuda"). Es histórico completo, no depende del mes elegido,
+  // porque una deuda de tarjeta no "se acaba" al cambiar de mes hasta que se liquida.
+  function renderCardBalances() {
+    var el = document.getElementById("cardBalGrid");
+    var cards = CONFIG.tarjetas.slice();
+    state.movimientos.forEach(function (m) {
+      if (m.tarjeta && m.tarjeta !== "Efectivo" && cards.indexOf(m.tarjeta) === -1) cards.push(m.tarjeta);
+    });
+    el.innerHTML = "";
+    var any = false;
+    cards.forEach(function (c) {
+      var cargado = 0, pagado = 0;
+      state.movimientos.forEach(function (m) {
+        if (m.tarjeta !== c) return;
+        if (esPagoDeDeuda(m)) pagado += m.monto;
+        else if (m.tipo === "Gasto") cargado += m.monto;
+      });
+      if (cargado === 0 && pagado === 0) return;
+      any = true;
+      var saldo = cargado - pagado;
+      var card = document.createElement("div");
+      card.className = "cardbal-card";
+      card.innerHTML =
+        '<div class="name">' + c + '</div>' +
+        '<div class="row"><span>Cargado</span><span class="val">' + fmtMoney(cargado) + '</span></div>' +
+        '<div class="row"><span>Pagado</span><span class="val">' + fmtMoney(pagado) + '</span></div>' +
+        '<div class="saldo ' + (saldo > 0.5 ? "owed" : "clear") + '">' + (saldo > 0.5 ? "Debes " + fmtMoney(saldo) : "✅ Al corriente") + '</div>';
+      el.appendChild(card);
+    });
+    if (!any) el.innerHTML = '<div class="empty-note">Aún no hay cargos ni pagos registrados a tarjetas de crédito.</div>';
+  }
+
   function renderContribution() {
     var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha); });
     document.getElementById("contribRange").textContent = "— " + currentPeriodLabel();
@@ -1142,7 +1212,7 @@
       document.getElementById("mCategoria").value,
       descripcion, monto,
       document.getElementById("mImpacto").value,
-      document.getElementById("mTarjeta").value
+      getMedioPago()
     ];
     sheetsAppend("Movimientos!A:I", row).then(function () {
       toast("Movimiento agregado.");
@@ -1257,6 +1327,8 @@
         document.getElementById("mTarjeta").value = name;
       }
     });
+    document.getElementById("pagoEfectivoBtn").addEventListener("click", function () { setMedioPago("efectivo"); });
+    document.getElementById("pagoTarjetaBtn").addEventListener("click", function () { setMedioPago("tarjeta"); });
 
     document.getElementById("monthPicker").addEventListener("change", function (e) {
       state.selectedMonth = e.target.value; state.showAll = false; render();
