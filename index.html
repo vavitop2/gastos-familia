@@ -64,6 +64,23 @@
   h1 { font-size: 22px; font-weight: 700; margin: 0 0 2px; }
   .subtitle { color: var(--text-secondary); font-size: 13px; margin: 0; }
   .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .who-greeting { font-size: 13px; color: var(--text-secondary); margin-right: 2px; }
+  .who-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex;
+    align-items: center; justify-content: center; z-index: 60; padding: 20px;
+  }
+  .who-card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px 24px; max-width: 340px; width: 100%; text-align: center;
+  }
+  .who-card h2 { margin: 0 0 8px; font-size: 18px; }
+  .who-card p { color: var(--text-secondary); font-size: 13px; margin: 0 0 18px; line-height: 1.5; }
+  .who-options { display: flex; flex-direction: column; gap: 8px; }
+  .who-options button {
+    padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--page); color: var(--text-primary); font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .who-options button:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
   .theme-toggle, .btn-secondary {
     border: 1px solid var(--border); background: var(--surface-1);
     color: var(--text-secondary); border-radius: 8px; padding: 8px 12px;
@@ -224,6 +241,8 @@
         <p class="subtitle">Tablero en vivo conectado a tu Google Sheet.</p>
       </div>
       <div class="topbar-actions">
+        <span class="who-greeting hidden" id="whoGreeting"></span>
+        <button class="btn-secondary hidden" id="changeUserBtn">Cambiar usuario</button>
         <button class="theme-toggle" id="themeToggle">🌓 Modo oscuro</button>
         <button class="btn-secondary hidden" id="logoutBtn">Cerrar sesión</button>
       </div>
@@ -340,6 +359,14 @@
 
 <div class="toast" id="toast"></div>
 
+<div class="who-overlay hidden" id="whoOverlay">
+  <div class="who-card">
+    <h2>¿Quién eres?</h2>
+    <p>Elige tu nombre para que el tablero te reconozca en este dispositivo y precargue tus movimientos.</p>
+    <div class="who-options" id="whoOptions"></div>
+  </div>
+</div>
+
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function () {
@@ -353,7 +380,7 @@
   // Categorías organizadas según la regla 50/30/20 (Elizabeth Warren / Finhabits) y las
   // recomendaciones de la Condusef sobre gastos hormiga y fondo de emergencia (3-6 meses).
   var CONFIG = {
-    usuarios: ["Pablo", "Mamá", "Otro/a"],
+    usuarios: ["Agueda", "Aranza", "Pablo"],
     categorias: [
       // Necesidades
       { nombre: "Casa / Renta", grupo: "necesidad" },
@@ -505,6 +532,42 @@
     document.getElementById("appContent").classList.remove("hidden");
     document.getElementById("logoutBtn").classList.remove("hidden");
     loadAll();
+    var stored = getStoredUser();
+    if (stored && CONFIG.usuarios.indexOf(stored) !== -1) applyUser(stored);
+    else showWhoOverlay();
+  }
+
+  // ---------- Identidad ("¿Quién eres?") ----------
+  function getStoredUser() {
+    try { return localStorage.getItem("gf_usuario"); } catch (e) { return null; }
+  }
+  function setStoredUser(name) {
+    try { localStorage.setItem("gf_usuario", name); } catch (e) {}
+  }
+  function showWhoOverlay() {
+    var opts = document.getElementById("whoOptions");
+    opts.innerHTML = "";
+    CONFIG.usuarios.forEach(function (u) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = u;
+      btn.addEventListener("click", function () {
+        setStoredUser(u);
+        applyUser(u);
+        document.getElementById("whoOverlay").classList.add("hidden");
+      });
+      opts.appendChild(btn);
+    });
+    document.getElementById("whoOverlay").classList.remove("hidden");
+  }
+  function applyUser(name) {
+    state.currentUser = name;
+    document.getElementById("mUsuario").value = name;
+    document.getElementById("pUsuario").value = name;
+    var greet = document.getElementById("whoGreeting");
+    greet.textContent = "Hola, " + name;
+    greet.classList.remove("hidden");
+    document.getElementById("changeUserBtn").classList.remove("hidden");
   }
 
   function logout() {
@@ -515,6 +578,8 @@
     document.getElementById("loginCard").classList.remove("hidden");
     document.getElementById("appContent").classList.add("hidden");
     document.getElementById("logoutBtn").classList.add("hidden");
+    document.getElementById("whoGreeting").classList.add("hidden");
+    document.getElementById("changeUserBtn").classList.add("hidden");
   }
 
   // ---------- Sheets API ----------
@@ -1079,6 +1144,7 @@
       state.tokenClient.requestAccessToken({ prompt: "" });
     });
     document.getElementById("logoutBtn").addEventListener("click", logout);
+    document.getElementById("changeUserBtn").addEventListener("click", showWhoOverlay);
     document.getElementById("refreshBtn").addEventListener("click", loadAll);
     document.getElementById("addTarjetaBtn").addEventListener("click", function () {
       var name = prompt("Nombre de la tarjeta, banco, billetera o cuenta nueva (ej. Mercado Pago, Nu, Banco Azteca):");
