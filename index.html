@@ -149,6 +149,31 @@
   .login-card { text-align: center; padding: 40px 20px; }
   .login-card p { color: var(--text-secondary); font-size: 14px; max-width: 420px; margin: 8px auto 20px; line-height: 1.5; }
 
+  /* ---------- Navegación por secciones ---------- */
+  .nav-bar { margin-bottom: 18px; }
+  .nav-toggle {
+    display: none; width: 100%; text-align: left; padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1);
+    color: var(--text-primary); font-size: 14.5px; font-weight: 600; cursor: pointer;
+  }
+  .nav-links { display: flex; gap: 6px; flex-wrap: wrap; }
+  .nav-link {
+    padding: 9px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--text-secondary);
+    font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .nav-link:hover { background: var(--page); }
+  .nav-link.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .period-seg { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+  .period-opt {
+    padding: 8px 14px; border: none; background: var(--surface-1);
+    color: var(--text-secondary); font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .period-opt + .period-opt { border-left: 1px solid var(--border); }
+  .period-opt:hover { background: var(--page); }
+  .period-opt.active { background: var(--accent); color: #fff; }
+
   .month-row { display:flex; align-items:center; gap:10px; margin-bottom: 20px; flex-wrap: wrap; }
   .month-row select, .month-row input[type="month"] {
     font-family: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--border);
@@ -361,6 +386,19 @@
     .who-card { padding: 22px 16px; }
     .cat-item { padding: 13px; }
     .cat-body { max-height: 62vh; }
+
+    /* Menú hamburguesa: en celular las pestañas se colapsan en un desplegable. */
+    .nav-toggle { display: block; }
+    .nav-links {
+      display: none; flex-direction: column; gap: 4px; margin-top: 8px;
+      background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 8px;
+    }
+    .nav-links.open { display: flex; }
+    .nav-link { width: 100%; text-align: left; border-radius: 8px; padding: 12px 14px; font-size: 14px; }
+
+    .period-seg { width: 100%; }
+    .period-opt { flex: 1; padding: 10px 8px; }
+    #monthPicker { width: 100%; }
   }
 </style>
 </head>
@@ -389,14 +427,29 @@
 
     <div id="appContent" class="hidden">
 
-      <div class="month-row">
-        <span class="month-label">Mes:</span>
+      <nav class="nav-bar">
+        <button type="button" class="nav-toggle" id="navToggle" aria-label="Abrir menú">☰ <span id="navCurrentLabel">Capturar</span></button>
+        <div class="nav-links" id="navLinks">
+          <button type="button" class="nav-link active" data-goto="capturar">➕ Capturar</button>
+          <button type="button" class="nav-link" data-goto="resumen">📊 Resumen</button>
+          <button type="button" class="nav-link" data-goto="pendientes">⏰ Pendientes</button>
+          <button type="button" class="nav-link" data-goto="tarjetas">💳 Tarjetas</button>
+          <button type="button" class="nav-link" data-goto="salud">🩺 Diagnóstico</button>
+          <button type="button" class="nav-link" data-goto="movimientos">📋 Movimientos</button>
+        </div>
+      </nav>
+
+      <div class="month-row" id="periodRow">
+        <div class="period-seg">
+          <button type="button" class="period-opt" data-period="semana">Esta semana</button>
+          <button type="button" class="period-opt active" data-period="mes">Mes</button>
+          <button type="button" class="period-opt" data-period="todo">Todo</button>
+        </div>
         <input type="month" id="monthPicker">
-        <button class="btn-secondary" id="allTimeBtn">Ver todo el histórico</button>
         <button class="btn-secondary" id="refreshBtn" style="margin-left:auto;">↻ Actualizar</button>
       </div>
 
-      <div class="stat-row">
+      <div class="stat-row" id="statRow">
         <div class="stat-tile"><div class="label">Ingresos del periodo</div><div class="value good" id="statIngresos">$0.00</div></div>
         <div class="stat-tile"><div class="label">Gastos del periodo</div><div class="value critical" id="statGastos">$0.00</div></div>
         <div class="stat-tile"><div class="label">Ahorrado / invertido</div><div class="value good" id="statAhorro">$0.00</div></div>
@@ -405,12 +458,15 @@
         <div class="stat-tile"><div class="label">Movimientos</div><div class="value" id="statCount">0</div></div>
       </div>
 
+      <section data-section="salud" class="hidden">
       <div class="panel" id="healthPanel">
         <h2>🩺 Diagnóstico financiero <span class="count">— últimos 3 meses</span></h2>
         <div id="healthScoreBlock"></div>
         <p class="disclaimer">Este diagnóstico es una guía automática basada en reglas generales de finanzas personales (50/30/20, fondo de emergencia de 3-6 meses). No sustituye la asesoría de un profesional certificado.</p>
       </div>
+      </section>
 
+      <section data-section="tarjetas" class="hidden">
       <div class="panel">
         <h2>💳 Saldo de tarjetas de crédito <span class="count">— cuánto debes hoy, histórico</span></h2>
         <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
@@ -418,21 +474,25 @@
         </p>
         <div class="cardbal-grid" id="cardBalGrid"></div>
       </div>
+      </section>
 
+      <section data-section="salud" class="hidden">
       <div class="panel">
-        <h2>Tendencia — ingresos, gastos y ahorro <span class="count">últimos 6 meses</span></h2>
+        <h2>Tendencia <span class="count" id="trendRange">— últimos 6 meses</span></h2>
         <div class="trend-chart" id="trendChart"></div>
         <div class="trend-legend" id="trendLegend"></div>
       </div>
 
       <div class="panel">
-        <h2>Contribución por usuario <span class="count" id="contribRange"></span></h2>
-        <div class="contrib-grid" id="contribGrid"></div>
-      </div>
-
-      <div class="panel">
         <h2>Proyección a 3 meses</h2>
         <div id="projectionBlock"></div>
+      </div>
+      </section>
+
+      <section data-section="resumen" class="hidden">
+      <div class="panel">
+        <h2>Contribución por usuario <span class="count" id="contribRange"></span></h2>
+        <div class="contrib-grid" id="contribGrid"></div>
       </div>
 
       <div class="panel">
@@ -443,6 +503,13 @@
         <div class="chart-block" id="budgetBuckets"></div>
       </div>
 
+      <div class="panel">
+        <h2>Gastos por categoría <span class="count" id="chartRange"></span></h2>
+        <div class="chart-block" id="categoryChart"></div>
+      </div>
+      </section>
+
+      <section data-section="capturar">
       <div class="panel">
         <h2>Agregar movimiento</h2>
         <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
@@ -474,12 +541,9 @@
           <div class="form-actions"><button type="submit" class="btn-primary" id="movSubmitBtn">Agregar movimiento</button></div>
         </form>
       </div>
+      </section>
 
-      <div class="panel">
-        <h2>Gastos por categoría <span class="count" id="chartRange"></span></h2>
-        <div class="chart-block" id="categoryChart"></div>
-      </div>
-
+      <section data-section="pendientes" class="hidden">
       <div class="panel">
         <h2>Pendientes <span class="count" id="pendCount"></span></h2>
         <form class="entry-form" id="pendForm" style="margin-bottom:18px;">
@@ -498,7 +562,9 @@
         </form>
         <div class="pend-grid" id="pendGrid"></div>
       </div>
+      </section>
 
+      <section data-section="movimientos" class="hidden">
       <div class="panel">
         <h2>Movimientos <span class="count" id="moveCount"></span></h2>
         <div class="filters-row">
@@ -514,6 +580,7 @@
         </div>
         <div class="empty-note" id="emptyNote" style="display:none;">Sin movimientos para este periodo.</div>
       </div>
+      </section>
 
     </div>
   </div>
@@ -649,7 +716,8 @@
     movimientos: [],   // {row, marca, fecha(Date), usuario, tipo, categoria, descripcion, monto, impacto, tarjeta}
     pendientes: [],     // {row, marca, fechaLimite(Date), tipo, usuario, categoria, concepto, monto, estado, notas}
     selectedMonth: null,
-    showAll: false,
+    periodMode: "mes",
+    section: "capturar",
     tokenClient: null,
     payingCard: null,
     payingPendRow: null
@@ -1052,19 +1120,72 @@
     });
   }
 
-  // ---------- Periodo ----------
+  // ---------- Periodo (semana / mes / todo) ----------
+  var MESES_LARGOS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
+  // Semana de lunes a domingo (convención en México). Devuelve ms UTC del lunes.
+  function inicioSemanaUTC(offsetSemanas) {
+    var hoy = new Date();
+    var dow = hoy.getDay();                       // 0 = domingo
+    var haciaLunes = (dow === 0 ? -6 : 1 - dow);
+    var lunes = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + haciaLunes + (offsetSemanas || 0) * 7);
+    return Date.UTC(lunes.getFullYear(), lunes.getMonth(), lunes.getDate());
+  }
+  function fechaAUTC(d) { return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); }
+
   function currentPeriodLabel() {
-    if (state.showAll) return "todo el histórico";
+    if (state.periodMode === "todo") return "todo el histórico";
+    if (state.periodMode === "semana") {
+      var ini = new Date(inicioSemanaUTC(0));
+      var fin = new Date(inicioSemanaUTC(0) + 6 * 86400000);
+      return "semana del " + ini.getUTCDate() + " al " + fin.getUTCDate() + " de " + MESES_LARGOS[fin.getUTCMonth()];
+    }
     var v = state.selectedMonth || currentMonthValue();
     var parts = v.split("-");
-    var months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-    return months[parseInt(parts[1], 10) - 1] + " " + parts[0];
+    return MESES_LARGOS[parseInt(parts[1], 10) - 1] + " " + parts[0];
   }
   function inPeriod(fecha) {
-    if (state.showAll) return true;
+    if (state.periodMode === "todo") return true;
     if (!fecha) return false;
+    if (state.periodMode === "semana") {
+      var ini = inicioSemanaUTC(0);
+      var t = fechaAUTC(fecha);
+      return t >= ini && t < ini + 7 * 86400000;
+    }
     var v = state.selectedMonth || currentMonthValue();
     return isoFromDate(fecha).slice(0, 7) === v;
+  }
+
+  function setPeriodMode(mode) {
+    state.periodMode = mode;
+    Array.prototype.forEach.call(document.querySelectorAll(".period-opt"), function (b) {
+      b.classList.toggle("active", b.getAttribute("data-period") === mode);
+    });
+    // El selector de mes solo tiene sentido en modo "mes".
+    document.getElementById("monthPicker").classList.toggle("hidden", mode !== "mes");
+    render();
+  }
+
+  // ---------- Navegación por secciones ----------
+  var SECTION_LABELS = {
+    capturar: "Capturar", resumen: "Resumen", pendientes: "Pendientes",
+    tarjetas: "Tarjetas", salud: "Diagnóstico", movimientos: "Movimientos"
+  };
+  function goToSection(name) {
+    state.section = name;
+    Array.prototype.forEach.call(document.querySelectorAll("section[data-section]"), function (s) {
+      s.classList.toggle("hidden", s.getAttribute("data-section") !== name);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".nav-link"), function (b) {
+      b.classList.toggle("active", b.getAttribute("data-goto") === name);
+    });
+    document.getElementById("navCurrentLabel").textContent = SECTION_LABELS[name] || name;
+    document.getElementById("navLinks").classList.remove("open");
+    // En "Capturar" el foco es registrar rápido: sin filtros de periodo ni tarjetas de totales.
+    var esCaptura = name === "capturar";
+    document.getElementById("periodRow").classList.toggle("hidden", esCaptura);
+    document.getElementById("statRow").classList.toggle("hidden", esCaptura);
+    window.scrollTo(0, 0);
   }
 
   // ---------- Semáforo / advertencia de pendientes ----------
@@ -1216,18 +1337,52 @@
     return map;
   }
 
-  function renderTrendChart() {
-    var totals = monthlyTotals();
-    var months = monthsBack(6);
-    var maxVal = 0.01;
-    months.forEach(function (mo) {
-      var t = totals[mo.key] || { ingresos: 0, gastos: 0, ahorro: 0 };
-      maxVal = Math.max(maxVal, t.ingresos, t.gastos, t.ahorro);
+  // Totales agrupados por semana (lunes-domingo), para la vista semanal de la tendencia.
+  function weeksBack(n) {
+    var out = [];
+    for (var i = n - 1; i >= 0; i--) {
+      var ini = inicioSemanaUTC(-i);
+      var d = new Date(ini);
+      out.push({ ini: ini, fin: ini + 7 * 86400000, label: d.getUTCDate() + " " + MONTH_ABBR[d.getUTCMonth()] });
+    }
+    return out;
+  }
+  function totalsEnRango(ini, fin) {
+    var t = { ingresos: 0, gastos: 0, ahorro: 0, deuda: 0 };
+    state.movimientos.forEach(function (m) {
+      if (!m.fecha) return;
+      var ms = fechaAUTC(m.fecha);
+      if (ms < ini || ms >= fin) return;
+      if (m.tipo === "Ingreso") t.ingresos += m.monto;
+      else if (esPagoDeDeuda(m)) t.deuda += m.monto;
+      else if (m.tipo === "Ahorro/Inversión") t.ahorro += m.monto;
+      else t.gastos += m.monto;
     });
+    return t;
+  }
+
+  function renderTrendChart() {
+    // La gráfica sigue al periodo elegido: en modo semana muestra semanas, si no, meses.
+    var porSemana = state.periodMode === "semana";
+    var puntos;
+    if (porSemana) {
+      puntos = weeksBack(8).map(function (w) {
+        return { label: w.label, t: totalsEnRango(w.ini, w.fin) };
+      });
+    } else {
+      var totals = monthlyTotals();
+      puntos = monthsBack(6).map(function (mo) {
+        return { label: mo.label, t: totals[mo.key] || { ingresos: 0, gastos: 0, ahorro: 0, deuda: 0 } };
+      });
+    }
+    document.getElementById("trendRange").textContent = porSemana ? "— últimas 8 semanas" : "— últimos 6 meses";
+
+    var maxVal = 0.01;
+    puntos.forEach(function (p) { maxVal = Math.max(maxVal, p.t.ingresos, p.t.gastos, p.t.ahorro); });
     var el = document.getElementById("trendChart");
     el.innerHTML = "";
-    months.forEach(function (mo) {
-      var t = totals[mo.key] || { ingresos: 0, gastos: 0, ahorro: 0 };
+    puntos.forEach(function (p) {
+      var t = p.t;
       var col = document.createElement("div");
       col.className = "trend-month";
       col.innerHTML =
@@ -1236,7 +1391,7 @@
           '<div class="trend-bar" title="Gastos ' + fmtMoney(t.gastos) + '" style="height:' + Math.max(t.gastos / maxVal * 120, 2) + 'px;background:var(--warn);"></div>' +
           '<div class="trend-bar" title="Ahorro ' + fmtMoney(t.ahorro) + '" style="height:' + Math.max(t.ahorro / maxVal * 120, 2) + 'px;background:var(--info);"></div>' +
         '</div>' +
-        '<div class="trend-month-label">' + mo.label + '</div>';
+        '<div class="trend-month-label">' + p.label + '</div>';
       el.appendChild(col);
     });
     document.getElementById("trendLegend").innerHTML =
@@ -1737,12 +1892,17 @@
     });
 
     document.getElementById("monthPicker").addEventListener("change", function (e) {
-      state.selectedMonth = e.target.value; state.showAll = false; render();
+      state.selectedMonth = e.target.value;
+      setPeriodMode("mes");
     });
-    document.getElementById("allTimeBtn").addEventListener("click", function () {
-      state.showAll = !state.showAll;
-      this.textContent = state.showAll ? "Ver solo el mes seleccionado" : "Ver todo el histórico";
-      render();
+    Array.prototype.forEach.call(document.querySelectorAll(".period-opt"), function (btn) {
+      btn.addEventListener("click", function () { setPeriodMode(btn.getAttribute("data-period")); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".nav-link"), function (btn) {
+      btn.addEventListener("click", function () { goToSection(btn.getAttribute("data-goto")); });
+    });
+    document.getElementById("navToggle").addEventListener("click", function () {
+      document.getElementById("navLinks").classList.toggle("open");
     });
     ["searchBox", "filterTipo", "filterUsuario"].forEach(function (id) {
       document.getElementById(id).addEventListener("input", renderTable);
@@ -1772,6 +1932,7 @@
       root.setAttribute("data-theme", current === "dark" ? "light" : "dark");
     });
 
+    goToSection("capturar");
     initGoogle();
   }
 
