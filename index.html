@@ -307,6 +307,61 @@
   .toast.show { opacity: 1; }
   .spinner-note { font-size: 12.5px; color: var(--text-muted); padding: 10px 0; }
   .hidden { display: none !important; }
+
+  /* ---------- Responsivo: celular ---------- */
+  @media (max-width: 640px) {
+    .wrap { padding: 16px 14px 48px; }
+    h1 { font-size: 19px; }
+    .subtitle { font-size: 12px; }
+
+    /* La barra superior se apila para que los botones no se encimen. */
+    .topbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .topbar-actions { flex-wrap: wrap; }
+    .topbar-actions .btn-secondary, .topbar-actions .theme-toggle { flex: 1; text-align: center; }
+    .who-greeting { width: 100%; }
+
+    .panel { padding: 15px 14px; border-radius: 12px; }
+    .panel h2 { font-size: 14.5px; }
+
+    /* Un solo campo por renglón: en 390px dos columnas quedan ilegibles. */
+    form.entry-form { grid-template-columns: 1fr; gap: 12px; }
+    .form-actions button { width: 100%; }
+
+    /* 16px evita que iOS/Safari haga zoom automático al enfocar un campo. */
+    .field input, .field select, .field textarea,
+    .cat-trigger, .cat-search, .month-row select, .month-row input[type="month"] {
+      font-size: 16px;
+    }
+
+    .month-row { gap: 8px; }
+    .month-row #refreshBtn { margin-left: 0; width: 100%; }
+
+    .stat-tile { padding: 12px 13px; }
+    .stat-tile .value { font-size: 18px; }
+    .stat-tile .label { font-size: 11px; }
+
+    /* Etiqueta arriba y barra abajo: así el nombre de la categoría no se corta. */
+    .bar-row { grid-template-columns: 1fr auto; grid-template-areas: "label amount" "bar bar"; gap: 4px 8px; margin-bottom: 14px; }
+    .bar-row .cat-label { grid-area: label; }
+    .bar-row .bar-track { grid-area: bar; }
+    .bar-row .amt { grid-area: amount; }
+
+    .health-score-num { font-size: 30px; }
+    .health-badge { font-size: 12.5px; padding: 7px 12px; }
+    .projection-num { font-size: 22px; }
+
+    /* Objetivos táctiles más grandes para el dedo. */
+    .row-actions button { padding: 8px 10px; font-size: 15px; }
+    .pend-card .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pend-card .actions button { flex: 1; min-width: 130px; padding: 9px 10px; }
+
+    .pago-toggle { flex-direction: column; }
+    .filters-row input[type="text"] { min-width: 100%; }
+
+    .who-card { padding: 22px 16px; }
+    .cat-item { padding: 13px; }
+    .cat-body { max-height: 62vh; }
+  }
 </style>
 </head>
 <body>
