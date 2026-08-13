@@ -524,7 +524,7 @@
             <button type="button" class="cat-trigger placeholder" data-cat-trigger="mCategoria">Toca para elegir categoría…</button>
             <select id="mCategoria" class="hidden"></select>
           </div>
-          <div class="field full"><label>Descripción</label><input type="text" id="mDescripcion" required></div>
+          <div class="field full"><label>Descripción <span style="color:var(--text-muted);">(opcional)</span></label><input type="text" id="mDescripcion" placeholder="Si lo dejas vacío se usa la categoría"></div>
           <div class="field"><label>Monto (MXN)</label><input type="number" id="mMonto" step="0.01" min="0" required></div>
           <div class="field"><label>Impacto</label><select id="mImpacto"></select></div>
           <div class="field full">
@@ -1669,9 +1669,11 @@
     if (!fecha) { toast("Selecciona una fecha."); return; }
     var monto = parseFloat(document.getElementById("mMonto").value);
     if (!monto || monto <= 0) { toast("Ingresa un monto válido."); return; }
-    var descripcion = document.getElementById("mDescripcion").value.trim();
-    if (!descripcion) { toast("Agrega una descripción."); return; }
-    if (!document.getElementById("mCategoria").value) { toast("Elige una categoría."); return; }
+    var categoria = document.getElementById("mCategoria").value;
+    if (!categoria) { toast("Elige una categoría."); return; }
+    // La descripción es opcional: si se deja vacía se usa la categoría, para que la fila
+    // nunca quede sin identificar en la hoja ni en la tabla.
+    var descripcion = document.getElementById("mDescripcion").value.trim() || categoria;
 
     var btn = document.getElementById("movSubmitBtn");
     btn.disabled = true; btn.textContent = "Guardando…";
@@ -1681,7 +1683,7 @@
       nowIso, fecha,
       document.getElementById("mUsuario").value,
       document.getElementById("mTipo").value,
-      document.getElementById("mCategoria").value,
+      categoria,
       descripcion, monto,
       document.getElementById("mImpacto").value,
       getMedioPago()
