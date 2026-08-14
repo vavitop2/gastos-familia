@@ -121,6 +121,29 @@
   .cat-trigger:hover { border-color: var(--accent); }
   .cat-trigger.placeholder { color: var(--text-muted); }
 
+  .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  .quick-btn {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--page); color: var(--text-primary); cursor: pointer; text-align: left;
+  }
+  .quick-btn:hover { border-color: var(--accent); background: var(--surface-1); }
+  .quick-btn .qi { font-size: 20px; }
+  .quick-btn .qt { font-size: 14px; font-weight: 700; }
+  .quick-btn .qs { font-size: 11.5px; color: var(--text-muted); line-height: 1.35; }
+
+  .lp-total { font-size: 13px; color: var(--text-secondary); margin: 4px 0 12px; }
+  .lp-total strong { color: var(--text-primary); }
+
+  .amort-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
+  .amort-table th { text-align: right; font-size: 10.5px; text-transform: uppercase; color: var(--text-muted); padding: 6px; border-bottom: 1px solid var(--baseline); }
+  .amort-table th:first-child, .amort-table td:first-child { text-align: left; }
+  .amort-table td { text-align: right; padding: 6px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  .amort-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 14px 0; }
+  .amort-summary .box { background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .amort-summary .box .l { font-size: 11px; color: var(--text-secondary); margin-bottom: 3px; }
+  .amort-summary .box .v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
   .pay-card { text-align: left; }
   .pay-card h2, .pay-card > p { text-align: center; }
   .pay-card .field { margin-bottom: 12px; }
@@ -181,8 +204,7 @@
   }
   .month-row .month-label { font-size: 13px; color: var(--text-secondary); }
 
-  .stat-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 22px; }
-  @media (max-width: 1024px) { .stat-row { grid-template-columns: repeat(3, 1fr); } }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin-bottom: 22px; }
   @media (max-width: 560px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
   .stat-tile .label span[title] { cursor: help; color: var(--text-muted); }
   .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
@@ -434,6 +456,7 @@
           <button type="button" class="nav-link" data-goto="resumen">📊 Resumen</button>
           <button type="button" class="nav-link" data-goto="pendientes">⏰ Pendientes</button>
           <button type="button" class="nav-link" data-goto="tarjetas">💳 Tarjetas</button>
+          <button type="button" class="nav-link" data-goto="prestamos">🤝 Préstamos</button>
           <button type="button" class="nav-link" data-goto="salud">🩺 Diagnóstico</button>
           <button type="button" class="nav-link" data-goto="movimientos">📋 Movimientos</button>
         </div>
@@ -454,6 +477,7 @@
         <div class="stat-tile"><div class="label">Gastos del periodo</div><div class="value critical" id="statGastos">$0.00</div></div>
         <div class="stat-tile"><div class="label">Ahorrado / invertido</div><div class="value good" id="statAhorro">$0.00</div></div>
         <div class="stat-tile"><div class="label">Pagos a deuda <span title="Tarjeta/préstamo — no cuenta como gasto nuevo, la compra ya se contó al hacerse">ⓘ</span></div><div class="value" id="statDeuda">$0.00</div></div>
+        <div class="stat-tile"><div class="label">Préstamos recibidos <span title="Entra dinero pero no es ingreso: es deuda que vas a devolver">ⓘ</span></div><div class="value" id="statPrestamo">$0.00</div></div>
         <div class="stat-tile"><div class="label">Balance sin asignar</div><div class="value" id="statBalance">$0.00</div></div>
         <div class="stat-tile"><div class="label">Movimientos</div><div class="value" id="statCount">0</div></div>
       </div>
@@ -473,6 +497,45 @@
           Lo que has cargado a cada tarjeta menos lo que ya le has pagado — así sabes exactamente cuánto liquidar en tu próximo corte, sin adivinar.
         </p>
         <div class="cardbal-grid" id="cardBalGrid"></div>
+      </div>
+      </section>
+
+      <section data-section="prestamos" class="hidden">
+      <div class="panel">
+        <h2>🤝 Préstamos <span class="count">— cuánto debes y cuánto te ha costado</span></h2>
+        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
+          El dinero que te prestan <strong>no cuenta como ingreso</strong> (es deuda). Pagar el capital <strong>no es gasto nuevo</strong>. Solo los <strong>intereses</strong> se cuentan como gasto real: eso es lo que realmente te cuesta el préstamo.
+        </p>
+        <div class="cardbal-grid" id="loanGrid"></div>
+      </div>
+
+      <div class="panel">
+        <h2>🧮 Simulador de amortización</h2>
+        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
+          Calcula tu plan de pagos antes de aceptar. Ej: te prestan $4,000, pagas semanal, $100 de interés por semana.
+        </p>
+        <form class="entry-form" id="amortForm">
+          <div class="field"><label>Monto prestado (MXN)</label><input type="number" id="aMonto" step="0.01" min="0" placeholder="4000"></div>
+          <div class="field"><label>Frecuencia de pago</label>
+            <select id="aFrec">
+              <option value="7">Semanal</option>
+              <option value="14">Quincenal</option>
+              <option value="15">Cada 15 días (día fijo)</option>
+              <option value="30">Mensual</option>
+            </select>
+          </div>
+          <div class="field"><label>Número de pagos</label><input type="number" id="aNumPagos" step="1" min="1" max="120" placeholder="10"></div>
+          <div class="field"><label>Interés por pago</label>
+            <select id="aTipoInteres">
+              <option value="fijo">Monto fijo ($)</option>
+              <option value="pct">% sobre saldo</option>
+            </select>
+          </div>
+          <div class="field"><label>Valor del interés</label><input type="number" id="aInteres" step="0.01" min="0" placeholder="100"></div>
+          <div class="field"><label>Fecha del primer pago</label><input type="date" id="aPrimerPago"></div>
+          <div class="form-actions"><button type="submit" class="btn-primary">Calcular plan</button></div>
+        </form>
+        <div id="amortResult"></div>
       </div>
       </section>
 
@@ -510,6 +573,18 @@
       </section>
 
       <section data-section="capturar">
+      <div class="panel">
+        <h2>Operaciones rápidas</h2>
+        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
+          Estas tienen reglas contables especiales, por eso van aparte del formulario normal.
+        </p>
+        <div class="quick-grid">
+          <button type="button" class="quick-btn" id="quickPagarTarjeta"><span class="qi">💳</span><span class="qt">Pagar tarjeta</span><span class="qs">No cuenta como gasto nuevo</span></button>
+          <button type="button" class="quick-btn" id="quickNuevoPrestamo"><span class="qi">🤝</span><span class="qt">Me prestaron dinero</span><span class="qs">Entra dinero, pero es deuda</span></button>
+          <button type="button" class="quick-btn" id="quickPagarPrestamo"><span class="qi">🏦</span><span class="qt">Pagar préstamo</span><span class="qs">Separa capital e interés</span></button>
+        </div>
+      </div>
+
       <div class="panel">
         <h2>Agregar movimiento</h2>
         <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
@@ -612,6 +687,38 @@
   </div>
 </div>
 
+<div class="who-overlay hidden" id="loanNewOverlay">
+  <div class="who-card pay-card">
+    <h2>🤝 Registrar préstamo recibido</h2>
+    <p>El dinero entra a tu bolsa, pero se registra como deuda — no infla tus ingresos ni tu presupuesto.</p>
+    <div class="field"><label>Nombre del préstamo</label><input type="text" id="lnNombre" placeholder="Ej. Préstamo Juan, Crédito Coppel"></div>
+    <div class="field"><label>Monto recibido (MXN)</label><input type="number" id="lnMonto" step="0.01" min="0"></div>
+    <div class="field"><label>Fecha</label><input type="date" id="lnFecha"></div>
+    <div class="field"><label>Usuario</label><select id="lnUsuario"></select></div>
+    <div class="pay-actions">
+      <button type="button" class="btn-secondary" id="lnCancelBtn">Cancelar</button>
+      <button type="button" class="btn-primary" id="lnConfirmBtn">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="who-overlay hidden" id="loanPayOverlay">
+  <div class="who-card pay-card">
+    <h2 id="lpTitle">🏦 Pagar préstamo</h2>
+    <p>Se guardan dos renglones: el capital (baja tu deuda, no es gasto) y el interés (sí es gasto real).</p>
+    <div class="field"><label>Préstamo</label><select id="lpPrestamo"></select></div>
+    <div class="field"><label>Abono a capital (MXN)</label><input type="number" id="lpCapital" step="0.01" min="0"></div>
+    <div class="field"><label>Interés pagado (MXN)</label><input type="number" id="lpInteres" step="0.01" min="0" placeholder="0 si no hubo interés"></div>
+    <div class="field"><label>Fecha</label><input type="date" id="lpFecha"></div>
+    <div class="field"><label>Usuario</label><select id="lpUsuario"></select></div>
+    <div class="lp-total" id="lpTotal"></div>
+    <div class="pay-actions">
+      <button type="button" class="btn-secondary" id="lpCancelBtn">Cancelar</button>
+      <button type="button" class="btn-primary" id="lpConfirmBtn">Registrar pago</button>
+    </div>
+  </div>
+</div>
+
 <div class="who-overlay hidden" id="catOverlay">
   <div class="who-card cat-card">
     <div class="cat-head">
@@ -678,7 +785,12 @@
       // (comida, ropa, etc.) al momento de comprarlas. Por eso NO cuentan como gasto nuevo aquí,
       // para no contarlas dos veces.
       { nombre: "Pago tarjeta de crédito", grupo: "deuda", icon: "💳" },
-      { nombre: "Pago de préstamo / crédito automotriz", grupo: "deuda", icon: "🏦" },
+      { nombre: "Pago de préstamo (capital)", grupo: "deuda", icon: "🏦" },
+      { nombre: "Pago de préstamo / crédito automotriz", grupo: "deuda", icon: "🚙" },
+      // El interés SÍ es gasto real: es lo que te cuesta el dinero prestado.
+      { nombre: "Intereses y comisiones de préstamo", grupo: "necesidad", icon: "％" },
+      // Recibir un préstamo entra dinero pero NO es ingreso: es deuda que vas a devolver.
+      { nombre: "Préstamo recibido", grupo: "prestamo", icon: "🤝" },
       // Otro
       { nombre: "Otro gasto", grupo: "otro", icon: "❓" },
       // Ingresos
@@ -699,6 +811,7 @@
     crecimiento: "📚 Crecimiento personal",
     ahorro: "💰 Ahorro e inversión",
     deuda: "💳 Pago de tarjeta / préstamo (no cuenta como gasto nuevo)",
+    prestamo: "🤝 Préstamo recibido (entra dinero, pero es deuda)",
     otro: "❓ Otro",
     ingreso: "💵 Ingresos"
   };
@@ -765,7 +878,7 @@
       groups[c.grupo] = groups[c.grupo] || [];
       groups[c.grupo].push(c.nombre);
     });
-    ["necesidad", "deseo", "crecimiento", "ahorro", "deuda", "otro", "ingreso"].forEach(function (g) {
+    ["necesidad", "deseo", "crecimiento", "ahorro", "deuda", "prestamo", "otro", "ingreso"].forEach(function (g) {
       if (!groups[g]) return;
       var og = document.createElement("optgroup");
       og.label = GROUP_LABELS[g];
@@ -897,7 +1010,7 @@
     body.appendChild(t2);
     var listGroups = document.createElement("div");
     listGroups.className = "cat-list";
-    ["necesidad", "deseo", "crecimiento", "ahorro", "deuda", "ingreso", "otro"].forEach(function (g) {
+    ["necesidad", "deseo", "crecimiento", "ahorro", "deuda", "prestamo", "ingreso", "otro"].forEach(function (g) {
       var count = CONFIG.categorias.filter(function (c) { return c.grupo === g; }).length;
       if (!count) return;
       var b = document.createElement("button");
@@ -1169,7 +1282,7 @@
   // ---------- Navegación por secciones ----------
   var SECTION_LABELS = {
     capturar: "Capturar", resumen: "Resumen", pendientes: "Pendientes",
-    tarjetas: "Tarjetas", salud: "Diagnóstico", movimientos: "Movimientos"
+    tarjetas: "Tarjetas", prestamos: "Préstamos", salud: "Diagnóstico", movimientos: "Movimientos"
   };
   function goToSection(name) {
     state.section = name;
@@ -1230,6 +1343,7 @@
     renderStats();
     renderHealth();
     renderCardBalances();
+    renderLoans();
     renderTrendChart();
     renderProjection();
     renderBudgetBuckets();
@@ -1241,8 +1355,10 @@
 
   function renderStats() {
     var movs = state.movimientos.filter(function (m) { return inPeriod(m.fecha); });
-    var ingresos = 0, gastos = 0, ahorro = 0, deuda = 0;
+    var ingresos = 0, gastos = 0, ahorro = 0, deuda = 0, prestamo = 0;
     movs.forEach(function (m) {
+      // Un préstamo recibido entra a la bolsa pero NO es ingreso: se lleva aparte.
+      if (esPrestamoRecibido(m)) { prestamo += m.monto; return; }
       if (m.tipo === "Ingreso") { ingresos += m.monto; return; }
       // Pagar la tarjeta/préstamo no es un gasto nuevo: la compra ya se contó en su categoría
       // real cuando se hizo. Aquí solo se resta del efectivo disponible, aparte de "Gastos".
@@ -1254,7 +1370,9 @@
     document.getElementById("statGastos").textContent = fmtMoney(gastos);
     document.getElementById("statAhorro").textContent = fmtMoney(ahorro);
     document.getElementById("statDeuda").textContent = fmtMoney(deuda);
-    var bal = ingresos - gastos - ahorro - deuda;
+    document.getElementById("statPrestamo").textContent = fmtMoney(prestamo);
+    // Flujo de efectivo real: el préstamo sí suma dinero disponible aunque no sea ingreso.
+    var bal = ingresos + prestamo - gastos - ahorro - deuda;
     var balEl = document.getElementById("statBalance");
     balEl.textContent = (bal >= 0 ? "+" : "") + fmtMoney(bal);
     balEl.className = "value " + (bal >= 0 ? "good" : "critical");
@@ -1268,6 +1386,10 @@
   // ese grupo, sin importar si se capturó como Gasto o como Ahorro/Inversión — así no depende
   // de que el usuario elija el Tipo "correcto" para evitar el doble conteo.
   function esPagoDeDeuda(m) { return grupoOfCategoria(m.categoria) === "deuda"; }
+  // Recibir un préstamo mete dinero a la bolsa, pero no es ingreso: es deuda.
+  // Se lleva aparte para que no infle tus ingresos ni tu presupuesto 50/30/20.
+  function esPrestamoRecibido(m) { return grupoOfCategoria(m.categoria) === "prestamo"; }
+  function esInteresPrestamo(m) { return m.categoria === "Intereses y comisiones de préstamo"; }
   // Un pendiente "Por pagar" cuya categoría es pago de tarjeta/préstamo: al cumplirlo hay que
   // registrar el movimiento real para que el saldo de la tarjeta baje, no solo tacharlo.
   function esPagoTarjetaPendiente(p) { return p.tipo === "Por pagar" && grupoOfCategoria(p.categoria) === "deuda"; }
@@ -1275,6 +1397,8 @@
   function computeBuckets(movs) {
     var ingresos = 0, necesidad = 0, deseo = 0, ahorro = 0, deuda = 0, byCatDeseo = {}, byCatNecesidad = {};
     movs.forEach(function (m) {
+      // El préstamo recibido queda fuera del 50/30/20: pedir prestado no aumenta tu presupuesto.
+      if (esPrestamoRecibido(m)) return;
       if (m.tipo === "Ingreso") { ingresos += m.monto; return; }
       if (esPagoDeDeuda(m)) { deuda += m.monto; return; }
       if (m.tipo === "Ahorro/Inversión") { ahorro += m.monto; return; }
@@ -1328,8 +1452,9 @@
     state.movimientos.forEach(function (m) {
       if (!m.fecha) return;
       var key = isoFromDate(m.fecha).slice(0, 7);
-      if (!map[key]) map[key] = { ingresos: 0, gastos: 0, ahorro: 0, deuda: 0 };
-      if (m.tipo === "Ingreso") map[key].ingresos += m.monto;
+      if (!map[key]) map[key] = { ingresos: 0, gastos: 0, ahorro: 0, deuda: 0, prestamo: 0 };
+      if (esPrestamoRecibido(m)) map[key].prestamo += m.monto;
+      else if (m.tipo === "Ingreso") map[key].ingresos += m.monto;
       else if (esPagoDeDeuda(m)) map[key].deuda += m.monto;
       else if (m.tipo === "Ahorro/Inversión") map[key].ahorro += m.monto;
       else map[key].gastos += m.monto;
@@ -1348,12 +1473,13 @@
     return out;
   }
   function totalsEnRango(ini, fin) {
-    var t = { ingresos: 0, gastos: 0, ahorro: 0, deuda: 0 };
+    var t = { ingresos: 0, gastos: 0, ahorro: 0, deuda: 0, prestamo: 0 };
     state.movimientos.forEach(function (m) {
       if (!m.fecha) return;
       var ms = fechaAUTC(m.fecha);
       if (ms < ini || ms >= fin) return;
-      if (m.tipo === "Ingreso") t.ingresos += m.monto;
+      if (esPrestamoRecibido(m)) t.prestamo += m.monto;
+      else if (m.tipo === "Ingreso") t.ingresos += m.monto;
       else if (esPagoDeDeuda(m)) t.deuda += m.monto;
       else if (m.tipo === "Ahorro/Inversión") t.ahorro += m.monto;
       else t.gastos += m.monto;
@@ -1559,6 +1685,203 @@
       el.appendChild(card);
     });
     if (!any) el.innerHTML = '<div class="empty-note">Aún no hay cargos ni pagos registrados a tarjetas de crédito.</div>';
+  }
+
+  // ---------- Préstamos ----------
+  // Cada préstamo se identifica por el nombre guardado en la columna "Tarjeta / cuenta",
+  // igual que las tarjetas. Así no hace falta cambiar la estructura de la hoja.
+  function loanAccounts() {
+    var names = [];
+    state.movimientos.forEach(function (m) {
+      if (!m.tarjeta) return;
+      if (esPrestamoRecibido(m) || (m.categoria === "Pago de préstamo (capital)") || esInteresPrestamo(m)) {
+        if (names.indexOf(m.tarjeta) === -1) names.push(m.tarjeta);
+      }
+    });
+    return names;
+  }
+  function loanTotals(nombre) {
+    var recibido = 0, capital = 0, interes = 0;
+    state.movimientos.forEach(function (m) {
+      if (m.tarjeta !== nombre) return;
+      if (esPrestamoRecibido(m)) recibido += m.monto;
+      else if (m.categoria === "Pago de préstamo (capital)") capital += m.monto;
+      else if (esInteresPrestamo(m)) interes += m.monto;
+    });
+    return { recibido: recibido, capital: capital, interes: interes, saldo: recibido - capital };
+  }
+
+  function renderLoans() {
+    var el = document.getElementById("loanGrid");
+    var nombres = loanAccounts();
+    el.innerHTML = "";
+    if (!nombres.length) {
+      el.innerHTML = '<div class="empty-note">Aún no hay préstamos registrados. Usa “Me prestaron dinero” en la pestaña Capturar.</div>';
+      return;
+    }
+    nombres.forEach(function (n) {
+      var t = loanTotals(n);
+      var card = document.createElement("div");
+      card.className = "cardbal-card";
+      card.innerHTML =
+        '<div class="name">' + n + '</div>' +
+        '<div class="row"><span>Te prestaron</span><span class="val">' + fmtMoney(t.recibido) + '</span></div>' +
+        '<div class="row"><span>Capital pagado</span><span class="val">' + fmtMoney(t.capital) + '</span></div>' +
+        '<div class="row"><span>Intereses pagados</span><span class="val" style="color:var(--critical);">' + fmtMoney(t.interes) + '</span></div>' +
+        '<div class="saldo ' + (t.saldo > 0.5 ? "owed" : "clear") + '">' +
+          (t.saldo > 0.5 ? "Debes " + fmtMoney(t.saldo) : "✅ Liquidado") + '</div>' +
+        (t.saldo > 0.5 ? '<button type="button" class="btn-primary pay-btn" data-pay-loan="' + n + '">🏦 Registrar pago</button>' : '');
+      el.appendChild(card);
+    });
+  }
+
+  // --- Modal: registrar préstamo recibido ---
+  function openLoanNew() {
+    document.getElementById("lnNombre").value = "";
+    document.getElementById("lnMonto").value = "";
+    document.getElementById("lnFecha").value = todayISO();
+    populateSelect(document.getElementById("lnUsuario"), CONFIG.usuarios, null);
+    if (state.currentUser && state.currentUser !== "Todos") document.getElementById("lnUsuario").value = state.currentUser;
+    document.getElementById("loanNewOverlay").classList.remove("hidden");
+  }
+  function closeLoanNew() { document.getElementById("loanNewOverlay").classList.add("hidden"); }
+  function confirmLoanNew() {
+    var nombre = document.getElementById("lnNombre").value.trim();
+    if (!nombre) { toast("Ponle un nombre al préstamo."); return; }
+    var monto = parseFloat(document.getElementById("lnMonto").value);
+    if (!monto || monto <= 0) { toast("Ingresa un monto válido."); return; }
+    var fecha = document.getElementById("lnFecha").value;
+    if (!fecha) { toast("Selecciona una fecha."); return; }
+
+    var btn = document.getElementById("lnConfirmBtn");
+    btn.disabled = true; btn.textContent = "Guardando…";
+    var nowIso = new Date().toISOString().slice(0, 19);
+    var row = [nowIso, fecha, document.getElementById("lnUsuario").value, "Ingreso",
+      "Préstamo recibido", "Préstamo recibido: " + nombre, monto, "Neutro", nombre];
+    sheetsAppend("Movimientos!A:I", row).then(function () {
+      toast("Préstamo registrado.");
+      closeLoanNew();
+      return loadAll();
+    }).catch(function (err) {
+      console.error(err);
+      toast("No se pudo guardar: " + (err && err.message ? err.message : "error desconocido"), 7000);
+    }).finally(function () {
+      btn.disabled = false; btn.textContent = "Registrar";
+    });
+  }
+
+  // --- Modal: pagar préstamo (capital + interés en una sola captura) ---
+  function openLoanPay(nombre) {
+    var nombres = loanAccounts();
+    if (!nombres.length) { toast("Primero registra un préstamo recibido."); return; }
+    populateSelect(document.getElementById("lpPrestamo"), nombres, null);
+    if (nombre) document.getElementById("lpPrestamo").value = nombre;
+    var sel = document.getElementById("lpPrestamo").value;
+    var t = loanTotals(sel);
+    document.getElementById("lpCapital").value = t.saldo > 0 ? t.saldo.toFixed(2) : "";
+    document.getElementById("lpInteres").value = "";
+    document.getElementById("lpFecha").value = todayISO();
+    populateSelect(document.getElementById("lpUsuario"), CONFIG.usuarios, null);
+    if (state.currentUser && state.currentUser !== "Todos") document.getElementById("lpUsuario").value = state.currentUser;
+    updateLoanPayTotal();
+    document.getElementById("loanPayOverlay").classList.remove("hidden");
+  }
+  function closeLoanPay() { document.getElementById("loanPayOverlay").classList.add("hidden"); }
+  function updateLoanPayTotal() {
+    var cap = parseFloat(document.getElementById("lpCapital").value) || 0;
+    var inte = parseFloat(document.getElementById("lpInteres").value) || 0;
+    var sel = document.getElementById("lpPrestamo").value;
+    var t = sel ? loanTotals(sel) : { saldo: 0 };
+    var restante = Math.max(t.saldo - cap, 0);
+    document.getElementById("lpTotal").innerHTML =
+      "Sales de bolsa: <strong>" + fmtMoney(cap + inte) + "</strong> · " +
+      "Saldo del préstamo después: <strong>" + fmtMoney(restante) + "</strong>";
+  }
+  function confirmLoanPay() {
+    var nombre = document.getElementById("lpPrestamo").value;
+    if (!nombre) { toast("Elige el préstamo."); return; }
+    var cap = parseFloat(document.getElementById("lpCapital").value) || 0;
+    var inte = parseFloat(document.getElementById("lpInteres").value) || 0;
+    if (cap <= 0 && inte <= 0) { toast("Ingresa el capital y/o el interés."); return; }
+    var fecha = document.getElementById("lpFecha").value;
+    if (!fecha) { toast("Selecciona una fecha."); return; }
+    var usuario = document.getElementById("lpUsuario").value;
+
+    var btn = document.getElementById("lpConfirmBtn");
+    btn.disabled = true; btn.textContent = "Guardando…";
+    var nowIso = new Date().toISOString().slice(0, 19);
+    var filas = [];
+    if (cap > 0) filas.push([nowIso, fecha, usuario, "Gasto", "Pago de préstamo (capital)", "Abono a capital: " + nombre, cap, "Positivo", nombre]);
+    if (inte > 0) filas.push([nowIso, fecha, usuario, "Gasto", "Intereses y comisiones de préstamo", "Interés: " + nombre, inte, "Negativo", nombre]);
+
+    // Se mandan en secuencia para que ambas filas queden en la hoja aunque una falle.
+    filas.reduce(function (p, fila) {
+      return p.then(function () { return sheetsAppend("Movimientos!A:I", fila); });
+    }, Promise.resolve()).then(function () {
+      toast("Pago registrado. Saldo actualizado.");
+      closeLoanPay();
+      return loadAll();
+    }).catch(function (err) {
+      console.error(err);
+      toast("No se pudo guardar: " + (err && err.message ? err.message : "error desconocido"), 7000);
+    }).finally(function () {
+      btn.disabled = false; btn.textContent = "Registrar pago";
+    });
+  }
+
+  // --- Simulador de amortización ---
+  function calcularAmortizacion(e) {
+    e.preventDefault();
+    var monto = parseFloat(document.getElementById("aMonto").value);
+    var numPagos = parseInt(document.getElementById("aNumPagos").value, 10);
+    var interesVal = parseFloat(document.getElementById("aInteres").value) || 0;
+    var tipo = document.getElementById("aTipoInteres").value;
+    var dias = parseInt(document.getElementById("aFrec").value, 10);
+    var primerPago = document.getElementById("aPrimerPago").value;
+    var out = document.getElementById("amortResult");
+
+    if (!monto || monto <= 0 || !numPagos || numPagos <= 0) {
+      out.innerHTML = '<div class="empty-note">Ingresa al menos el monto prestado y el número de pagos.</div>';
+      return;
+    }
+
+    var capitalPorPago = monto / numPagos;
+    var saldo = monto, totalInteres = 0;
+    var filas = [];
+    var base = primerPago ? new Date(primerPago + "T00:00:00Z") : null;
+    for (var i = 1; i <= numPagos; i++) {
+      var interesPago = tipo === "pct" ? saldo * (interesVal / 100) : interesVal;
+      var capital = (i === numPagos) ? saldo : capitalPorPago;  // último pago cierra el saldo exacto
+      saldo = Math.max(saldo - capital, 0);
+      totalInteres += interesPago;
+      var fechaTxt = "—";
+      if (base) {
+        var d = new Date(base.getTime() + (i - 1) * dias * 86400000);
+        fechaTxt = fmtDate(d);
+      }
+      filas.push({ n: i, fecha: fechaTxt, capital: capital, interes: interesPago, pago: capital + interesPago, saldo: saldo });
+    }
+    var totalPagar = monto + totalInteres;
+    var costoPct = monto > 0 ? (totalInteres / monto * 100) : 0;
+
+    out.innerHTML =
+      '<div class="amort-summary">' +
+        '<div class="box"><div class="l">Pago por periodo</div><div class="v">' + fmtMoney(filas[0].pago) + '</div></div>' +
+        '<div class="box"><div class="l">Total de intereses</div><div class="v" style="color:var(--critical);">' + fmtMoney(totalInteres) + '</div></div>' +
+        '<div class="box"><div class="l">Total a pagar</div><div class="v">' + fmtMoney(totalPagar) + '</div></div>' +
+        '<div class="box"><div class="l">Costo sobre lo prestado</div><div class="v">' + costoPct.toFixed(1) + '%</div></div>' +
+      '</div>' +
+      '<div style="overflow-x:auto;"><table class="amort-table"><thead><tr>' +
+        '<th>#</th><th>Fecha</th><th>Capital</th><th>Interés</th><th>Pago</th><th>Saldo</th>' +
+      '</tr></thead><tbody>' +
+      filas.map(function (f) {
+        return '<tr><td>' + f.n + '</td><td>' + f.fecha + '</td><td>' + fmtMoney(f.capital) + '</td><td>' +
+          fmtMoney(f.interes) + '</td><td>' + fmtMoney(f.pago) + '</td><td>' + fmtMoney(f.saldo) + '</td></tr>';
+      }).join("") +
+      '</tbody></table></div>' +
+      '<p style="font-size:11.5px;color:var(--text-muted);margin-top:10px;line-height:1.5;">' +
+      'Esta simulación es solo informativa y asume capital repartido en partes iguales. Compárala con lo que te diga quien presta; ' +
+      'no sustituye la asesoría de un profesional.</p>';
   }
 
   function renderContribution() {
@@ -1879,6 +2202,37 @@
         document.getElementById("mTarjeta").value = name;
       }
     });
+    // Operaciones rápidas con reglas contables especiales.
+    document.getElementById("quickPagarTarjeta").addEventListener("click", function () { openPayModal(null, 0, null); });
+    document.getElementById("quickNuevoPrestamo").addEventListener("click", openLoanNew);
+    document.getElementById("quickPagarPrestamo").addEventListener("click", function () { openLoanPay(null); });
+
+    document.getElementById("lnCancelBtn").addEventListener("click", closeLoanNew);
+    document.getElementById("lnConfirmBtn").addEventListener("click", confirmLoanNew);
+    document.getElementById("loanNewOverlay").addEventListener("click", function (e) {
+      if (e.target.id === "loanNewOverlay") closeLoanNew();
+    });
+
+    document.getElementById("lpCancelBtn").addEventListener("click", closeLoanPay);
+    document.getElementById("lpConfirmBtn").addEventListener("click", confirmLoanPay);
+    document.getElementById("loanPayOverlay").addEventListener("click", function (e) {
+      if (e.target.id === "loanPayOverlay") closeLoanPay();
+    });
+    ["lpCapital", "lpInteres"].forEach(function (id) {
+      document.getElementById(id).addEventListener("input", updateLoanPayTotal);
+    });
+    document.getElementById("lpPrestamo").addEventListener("change", function () {
+      var t = loanTotals(this.value);
+      document.getElementById("lpCapital").value = t.saldo > 0 ? t.saldo.toFixed(2) : "";
+      updateLoanPayTotal();
+    });
+    document.getElementById("loanGrid").addEventListener("click", function (e) {
+      var btn = e.target.closest("button[data-pay-loan]");
+      if (btn) openLoanPay(btn.getAttribute("data-pay-loan"));
+    });
+    document.getElementById("amortForm").addEventListener("submit", calcularAmortizacion);
+    document.getElementById("aPrimerPago").value = todayISO();
+
     document.getElementById("pagoEfectivoBtn").addEventListener("click", function () { setMedioPago("efectivo"); });
     document.getElementById("pagoTarjetaBtn").addEventListener("click", function () { setMedioPago("tarjeta"); });
 
