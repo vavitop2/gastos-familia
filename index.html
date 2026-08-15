@@ -129,6 +129,21 @@
   .cat-trigger:hover { border-color: var(--accent); }
   .cat-trigger.placeholder { color: var(--text-muted); }
 
+  /* Subtítulo corto de panel y notas explicativas colapsadas: el texto largo empujaba
+     el formulario fuera de pantalla en el celular. */
+  .panel-sub { font-size: 12.5px; color: var(--text-secondary); margin: 0 0 14px; line-height: 1.5; }
+  .info-note { margin: 0 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--page); }
+  .info-note > summary {
+    cursor: pointer; list-style: none; padding: 10px 12px;
+    font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+  }
+  .info-note > summary::-webkit-details-marker { display: none; }
+  .info-note > summary::before { content: "ⓘ "; color: var(--accent); }
+  .info-note > summary::after { content: " ▾"; color: var(--text-muted); }
+  .info-note[open] > summary::after { content: " ▴"; }
+  .info-note > summary:hover { color: var(--text-primary); }
+  .info-note > p { margin: 0; padding: 0 12px 12px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
+
   .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
   .quick-btn {
     display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
@@ -501,9 +516,7 @@
       <section data-section="tarjetas" class="hidden">
       <div class="panel">
         <h2>💳 Saldo de tarjetas de crédito <span class="count">— cuánto debes hoy, histórico</span></h2>
-        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
-          Lo que has cargado a cada tarjeta menos lo que ya le has pagado — así sabes exactamente cuánto liquidar en tu próximo corte, sin adivinar.
-        </p>
+        <p class="panel-sub">Lo cargado menos lo pagado: cuánto liquidar en tu próximo corte.</p>
         <div class="cardbal-grid" id="cardBalGrid"></div>
       </div>
       </section>
@@ -511,17 +524,16 @@
       <section data-section="prestamos" class="hidden">
       <div class="panel">
         <h2>🤝 Préstamos <span class="count">— cuánto debes y cuánto te ha costado</span></h2>
-        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
-          El dinero que te prestan <strong>no cuenta como ingreso</strong> (es deuda). Pagar el capital <strong>no es gasto nuevo</strong>. Solo los <strong>intereses</strong> se cuentan como gasto real: eso es lo que realmente te cuesta el préstamo.
-        </p>
+        <details class="info-note">
+          <summary>¿Cómo se cuentan los préstamos?</summary>
+          <p>El dinero que te prestan <strong>no cuenta como ingreso</strong> (es deuda). Pagar el capital <strong>no es gasto nuevo</strong>. Solo los <strong>intereses</strong> son gasto real: eso es lo que de verdad te cuesta el préstamo.</p>
+        </details>
         <div class="cardbal-grid" id="loanGrid"></div>
       </div>
 
       <div class="panel">
         <h2>🧮 Simulador de amortización</h2>
-        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
-          Calcula tu plan de pagos antes de aceptar. Ej: te prestan $4,000, pagas semanal, $100 de interés por semana.
-        </p>
+        <p class="panel-sub">Calcula tu plan antes de aceptar. Ej: $4,000, pago semanal, $100 de interés.</p>
         <form class="entry-form" id="amortForm">
           <div class="field"><label>Monto prestado (MXN)</label><input type="number" id="aMonto" step="0.01" min="0" placeholder="4000"></div>
           <div class="field"><label>Frecuencia de pago</label>
@@ -568,9 +580,10 @@
 
       <div class="panel">
         <h2>Tu presupuesto <span class="count">— regla 50/30/20</span></h2>
-        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
-          Meta sugerida por expertos en finanzas personales: 50% necesidades, 30% deseos, 20% ahorro o pago acelerado de deudas (tarjetas, préstamos). El ahorro se calcula antes de gastar, no con lo que sobra.
-        </p>
+        <details class="info-note">
+          <summary>¿Qué es la regla 50/30/20?</summary>
+          <p>Meta sugerida por expertos en finanzas personales: 50% necesidades, 30% deseos, 20% ahorro o pago acelerado de deudas. El ahorro se aparta antes de gastar, no con lo que sobra.</p>
+        </details>
         <div class="chart-block" id="budgetBuckets"></div>
       </div>
 
@@ -583,9 +596,6 @@
       <section data-section="capturar">
       <div class="panel">
         <h2>Operaciones rápidas</h2>
-        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
-          Estas tienen reglas contables especiales, por eso van aparte del formulario normal.
-        </p>
         <div class="quick-grid">
           <button type="button" class="quick-btn" id="quickPagarTarjeta"><span class="qi">💳</span><span class="qt">Pagar tarjeta</span><span class="qs">No cuenta como gasto nuevo</span></button>
           <button type="button" class="quick-btn" id="quickNuevoPrestamo"><span class="qi">🤝</span><span class="qt">Me prestaron dinero</span><span class="qs">Entra dinero, pero es deuda</span></button>
@@ -595,9 +605,10 @@
 
       <div class="panel">
         <h2>Agregar movimiento</h2>
-        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5;">
-          <strong>Regla clave para no duplicar gastos:</strong> registra cada compra en su categoría real (Comida, Ropa, etc.) el día que la haces, sin importar si pagaste con tarjeta o efectivo — usa "Tarjeta / cuenta" solo para anotar el medio de pago. Cuando después liquides tu tarjeta, usa la categoría <strong>"Pago tarjeta de crédito"</strong>: el tablero la excluye automáticamente de "Gastos" (esa compra ya se contó), y solo la resta de tu efectivo disponible. Así evitas contar la misma compra dos veces.
-        </p>
+        <details class="info-note">
+          <summary>¿Cómo evitar contar un gasto dos veces?</summary>
+          <p>Registra cada compra en su categoría real (Comida, Ropa, etc.) el día que la haces, sin importar si pagaste con tarjeta o efectivo — el medio de pago es solo una anotación. Cuando después liquides tu tarjeta, usa el botón <strong>“Pagar tarjeta”</strong>: el tablero lo excluye de "Gastos" (esa compra ya se contó) y solo lo resta de tu efectivo disponible.</p>
+        </details>
         <form class="entry-form" id="movForm">
           <div class="field"><label>Fecha</label><input type="date" id="mFecha" required></div>
           <div class="field"><label>Usuario</label><select id="mUsuario"></select></div>
